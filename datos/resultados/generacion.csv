@@ -1,0 +1,10 @@
+archivo,filas,tamano_bytes,duracion_total_s,semilla
+proveedor.csv,100000,10013120,10.021089,42
+contrato_suministro.csv,15000,1381840,10.021089,42
+sku.csv,400000,37260679,10.021089,42
+catalogo_negociado.csv,399997,34335866,10.021089,42
+cedi.csv,5,210,10.021089,42
+franja_descargue.csv,127750,6820560,10.021089,42
+orden_compra.csv,500000,51621202,10.021089,42
+linea_orden.csv,2036384,89899478,10.021089,42
+evento_auditoria.csv,800000,107518897,10.021089,42

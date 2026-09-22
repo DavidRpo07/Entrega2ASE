@@ -1,0 +1,2 @@
+# Única dependencia externa de Python del proyecto.
+psycopg2-binary==2.9.11

@@ -1,0 +1,26 @@
+# Entornos virtuales y configuración local
+venv/
+.venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Cachés y archivos generados por Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Archivos del sistema y del editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs de ejecuciones y bases de datos locales
+*.log
+datos/resultados/logs/
+*.sqlite3
+*.db

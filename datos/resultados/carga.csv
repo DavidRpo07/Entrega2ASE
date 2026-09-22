@@ -1,0 +1,11 @@
+tipo,tabla,archivo,filas,tamano_bytes,duracion_ms
+COPY,proveedores.proveedor,datos/csv/proveedor.csv,100000,10013120,425
+COPY,proveedores.contrato_suministro,datos/csv/contrato_suministro.csv,15000,1381840,184
+COPY,catalogo.sku,datos/csv/sku.csv,400000,37260679,1627
+COPY,catalogo.catalogo_negociado,datos/csv/catalogo_negociado.csv,399997,34335866,1762
+COPY,logistica.cedi,datos/csv/cedi.csv,5,210,93
+COPY,logistica.franja_descargue,datos/csv/franja_descargue.csv,127750,6820560,437
+COPY,ordenes.orden_compra,datos/csv/orden_compra.csv,500000,51621202,997
+COPY,ordenes.linea_orden,datos/csv/linea_orden.csv,2036384,89899478,5425
+COPY,auditoria.evento_auditoria,datos/csv/evento_auditoria.csv,800000,107518897,1708
+TOTAL,carga_completa,,,,15826

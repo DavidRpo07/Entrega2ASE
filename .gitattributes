@@ -1,0 +1,2 @@
+datos/csv/evento_auditoria.csv filter=lfs diff=lfs merge=lfs -text
+datos/csv/linea_orden.csv filter=lfs diff=lfs merge=lfs -text
