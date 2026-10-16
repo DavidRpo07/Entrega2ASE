@@ -1,0 +1,6 @@
+# Fallas ACTIVAS. El inyector relee este archivo cada segundo (sin redespliegue).
+# - Para activar: copie una entrada de lab/fallas/catalogo.yaml bajo "fallas".
+# - Para apagar todo de inmediato (kill switch): kill_switch: true
+#   (o DELETE /admin/faults en la API).
+kill_switch: false
+fallas: []

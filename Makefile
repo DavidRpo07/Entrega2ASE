@@ -1,4 +1,4 @@
-.PHONY: datos db-up db-down db-reset cargar verificar estrategias fase4 modulith medir limpiar-resultados
+.PHONY: datos db-up db-down db-reset cargar verificar estrategias fase4 modulith medir limpiar-resultados test-lab
 
 # Flujo obligatorio del entregable: genera → carga → verifica.
 datos: db-up
@@ -54,3 +54,7 @@ medir: db-up
 
 limpiar-resultados:
 	@rm -f datos/resultados/q*.csv datos/resultados/estrategias_inyeccion.csv datos/resultados/logs/*.log
+
+# Entregable 3: tests del inyector de fallas (no requiere Docker).
+test-lab:
+	@python3 -m unittest discover -s lab/tests -t .

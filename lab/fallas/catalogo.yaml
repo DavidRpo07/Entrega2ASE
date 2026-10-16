@@ -1,0 +1,85 @@
+# Catálogo de las 8 fallas del Entregable 3 (2 por familia).
+# NO se carga automáticamente: es la referencia. Para un experimento se copia
+# la entrada a faults.yaml (o se envía por POST /admin/faults).
+# Los parámetros coinciden con el documento "Entregable 3 — Diseño experimental".
+
+fallas:
+  # ---------------- A · Latencia inducida ----------------
+  - id: A1
+    familia: latencia
+    descripcion: Latencia fija en la dependencia de Catálogo (Q2)
+    tipo: latencia_fija
+    target: catalogo.validar_sku
+    ms_fijos: 800
+    probabilidad: 0.30
+    duracion_s: 300
+    semilla: 42
+
+  - id: A2
+    familia: latencia
+    descripcion: Jitter lognormal en Logística (Q3); mediana ~245 ms, cola > 2 s
+    tipo: latencia_lognormal
+    target: logistica.reservar_franja
+    mu: 5.5
+    sigma: 1.0
+    max_ms: 10000
+    probabilidad: 1.0
+    duracion_s: 300
+    semilla: 42
+
+  # ---------------- B · Base de datos ----------------
+  - id: B1
+    familia: base_de_datos
+    descripcion: Pool agotado — cada consulta retiene la conexión +300 ms (API con pool max 5)
+    tipo: retencion_conexion
+    target: db.consulta
+    ms_fijos: 300
+    probabilidad: 1.0
+    duracion_s: 300
+    semilla: 42
+
+  - id: B2
+    familia: base_de_datos
+    descripcion: SELECT ... FOR UPDATE retenido 30 s cada 60 s sobre franjas del CEDI más usado (script del runner)
+    tipo: externa
+    target: logistica.franja_descargue
+    duracion_s: 300
+    semilla: 42
+
+  # ---------------- C · Degradación de tiempos ----------------
+  - id: C1
+    familia: degradacion
+    descripcion: Saturación de CPU en una réplica (activar solo en api-1)
+    tipo: cpu
+    target: api-1
+    hilos: 2
+    carga_cpu: 0.9
+    duracion_s: 300
+    semilla: 42
+
+  - id: C2
+    familia: degradacion
+    descripcion: Consumidor del outbox pausado 3 min
+    tipo: pausa
+    target: worker.outbox
+    duracion_s: 180
+    semilla: 42
+
+  # ---------------- D · Riesgo de disponibilidad ----------------
+  - id: D1
+    familia: disponibilidad
+    descripcion: Caída de api-2 (docker stop min 1, start min 4; lo ejecuta el runner)
+    tipo: externa
+    target: api-2
+    duracion_s: 300
+    semilla: 42
+
+  - id: D2
+    familia: disponibilidad
+    descripcion: Dependencia externa (mock SAP) responde 503 en 40 % de las llamadas
+    tipo: error
+    target: ext_sap.notificar
+    codigo_http: 503
+    probabilidad: 0.40
+    duracion_s: 300
+    semilla: 42
