@@ -1,0 +1,164 @@
+{
+  "run": "A1_20261016T205354Z",
+  "experimento": "A1",
+  "prueba": false,
+  "marcas_utc": {
+    "baseline": "2026-10-16T20:54:00.099+00:00",
+    "falla_on": "2026-10-16T20:59:00.128+00:00",
+    "kill": "2026-10-16T21:04:00.148+00:00",
+    "fin": "2026-10-16T21:06:00.719+00:00"
+  },
+  "por_fase": {
+    "baseline": {
+      "peticiones": 6002,
+      "throughput_rps": 20.0,
+      "post": {
+        "n": 4225,
+        "p50_ms": 5.5,
+        "p95_ms": 11.8,
+        "p99_ms": 26.3,
+        "max_ms": 116.5
+      },
+      "todas": {
+        "p50_ms": 6.1,
+        "p95_ms": 23.4,
+        "p99_ms": 31.0
+      },
+      "por_op": {
+        "crear": {
+          "n": 4225,
+          "p95_ms": 11.8
+        },
+        "listar": {
+          "n": 1192,
+          "p95_ms": 26.6
+        },
+        "precio": {
+          "n": 585,
+          "p95_ms": 7.6
+        }
+      },
+      "codigos": {
+        "200": 1777,
+        "201": 4225
+      },
+      "errores_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.1,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "falla": {
+      "peticiones": 6000,
+      "throughput_rps": 20.0,
+      "post": {
+        "n": 4194,
+        "p50_ms": 7.4,
+        "p95_ms": 811.0,
+        "p99_ms": 820.7,
+        "max_ms": 1126.6
+      },
+      "todas": {
+        "p50_ms": 9.6,
+        "p95_ms": 810.2,
+        "p99_ms": 818.5
+      },
+      "por_op": {
+        "crear": {
+          "n": 4194,
+          "p95_ms": 811.0
+        },
+        "listar": {
+          "n": 1218,
+          "p95_ms": 27.6
+        },
+        "precio": {
+          "n": 588,
+          "p95_ms": 808.6
+        }
+      },
+      "codigos": {
+        "200": 1806,
+        "201": 4194
+      },
+      "errores_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.8,
+      "cumple": {
+        "p95": false,
+        "p99": false,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "recuperacion": {
+      "peticiones": 2399,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 1667,
+        "p50_ms": 5.7,
+        "p95_ms": 11.8,
+        "p99_ms": 24.8,
+        "max_ms": 159.0
+      },
+      "todas": {
+        "p50_ms": 6.1,
+        "p95_ms": 23.4,
+        "p99_ms": 29.8
+      },
+      "por_op": {
+        "crear": {
+          "n": 1667,
+          "p95_ms": 11.8
+        },
+        "listar": {
+          "n": 457,
+          "p95_ms": 28.2
+        },
+        "precio": {
+          "n": 275,
+          "p95_ms": 7.4
+        }
+      },
+      "codigos": {
+        "200": 732,
+        "201": 1667
+      },
+      "errores_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.1,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    }
+  },
+  "recuperacion": {
+    "recuperado": true,
+    "segundos": 0.0,
+    "cliente_s": 0.0,
+    "lag_s": 0.0,
+    "cumple_slo": true
+  },
+  "slo": {
+    "p95_post_ms": 100,
+    "p99_post_ms": 250,
+    "errores_pct": 1.0,
+    "ventana_errores_s": 60,
+    "lag_outbox_s": 10,
+    "recuperacion_s": 20
+  },
+  "inyecciones": 1421,
+  "claves_expuestas_durante_falla": 6000,
+  "trazas": 25,
+  "enlaces": {
+    "grafana": "http://localhost:3000/d/lab-entregable3?from=1792184010099&to=1792184775719",
+    "jaeger": "http://localhost:16686/search?service=ordenes-api&start=1792184340128294&end=1792184640148450"
+  }
+}
