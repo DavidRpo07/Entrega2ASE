@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException, Query
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from fastapi.responses import JSONResponse
 from psycopg.rows import dict_row
 from psycopg_pool import PoolTimeout
@@ -16,10 +17,10 @@ from pydantic import BaseModel, Field
 from medir_q4 import QUERY_Q4
 from medir_q5 import QUERY_Q5
 
-from app import admin_fallas, config, db
+from app import admin_fallas, config, db, metricas, telemetria
 from app.servicios import CatalogoConFallas, modulith
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s [" + config.INSTANCIA + "] %(message)s")
+telemetria.configurar("ordenes-api")
 log = logging.getLogger("api")
 
 # Las órdenes de la API usan su propio rango para no chocar con datos ni con fase 4 (600001+).
@@ -43,6 +44,10 @@ async def ciclo_de_vida(_app):
 
 app = FastAPI(title="Modulith órdenes — laboratorio de fallas", lifespan=ciclo_de_vida)
 admin_fallas.instalar(app)
+metricas.instalar_http(app)
+metricas.registrar_colectores(lambda: db.POOL)
+# Se instrumenta al final: su middleware queda por fuera y el access log ya ve el trace_id.
+FastAPIInstrumentor.instrument_app(app, excluded_urls="health,metrics")
 
 
 @app.exception_handler(PoolTimeout)

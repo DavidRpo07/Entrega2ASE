@@ -62,7 +62,7 @@ test-lab:
 
 # Entregable 3, fase 1: API (2 réplicas tras nginx), worker del outbox y mock ext-sap.
 # Requiere la base cargada (`make datos`). La API queda en http://localhost:8080
-LAB_SERVICIOS = api-1 api-2 worker ext-sap nginx
+LAB_SERVICIOS = api-1 api-2 worker ext-sap nginx prometheus grafana jaeger postgres-exporter
 LAB_RED = escalables-lab
 
 lab-up: db-up
@@ -73,7 +73,7 @@ lab-up: db-up
 	@# postgres-escalables puede venir de `docker run` (fuera de compose): se une a la red del lab.
 	@docker network connect --alias postgres $(LAB_RED) postgres-escalables 2>/dev/null || true
 	@docker compose up -d --no-deps --wait $(LAB_SERVICIOS)
-	@echo "Laboratorio arriba: API en http://localhost:8080 (docs en /docs)"
+	@echo "Laboratorio arriba: API http://localhost:8080/docs | Grafana http://localhost:3000 | Prometheus http://localhost:9090 | Jaeger http://localhost:16686"
 
 lab-down:
 	@docker compose rm -sf $(LAB_SERVICIOS)

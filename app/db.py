@@ -1,10 +1,14 @@
 """Pool de conexiones y punto de falla db.consulta (B1)."""
-from contextlib import contextmanager
+import time
+from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 
+from opentelemetry.trace import SpanKind
 from psycopg_pool import ConnectionPool
 
 from app import config
+from app.metricas import POOL_ESPERA
+from app.telemetria import TRACER
 from lab.fallas.inyector import INYECTOR
 
 # Clave de la petición en curso (id de orden, etc.): hace determinista el % de tráfico.
@@ -39,8 +43,11 @@ class CursorConFallas:
         self._cursor = cursor
 
     def execute(self, sql, params=None):
-        INYECTOR.punto("db.consulta", clave=CLAVE_PETICION.get())
-        return self._cursor.execute(sql, params)
+        sentencia = " ".join(str(sql).split())
+        with TRACER.start_as_current_span("db.consulta", kind=SpanKind.CLIENT, attributes={
+                "db.system": "postgresql", "db.statement": sentencia[:500]}):
+            INYECTOR.punto("db.consulta", clave=CLAVE_PETICION.get())
+            return self._cursor.execute(sql, params)
 
     def __getattr__(self, nombre):
         return getattr(self._cursor, nombre)
@@ -56,6 +63,14 @@ class CursorConFallas:
 def transaccion():
     """Toma una conexión del pool (bloquea hasta POOL_TIMEOUT_S) y abre una
     transacción: commit al salir, rollback si hay excepción."""
-    with abrir_pool().connection() as conn:
-        with conn.cursor() as cur:
-            yield CursorConFallas(cur)
+    with ExitStack() as pila:
+        with TRACER.start_as_current_span("db.pool.adquirir") as span:
+            t0 = time.perf_counter()
+            try:
+                conn = pila.enter_context(abrir_pool().connection())
+            finally:
+                espera = time.perf_counter() - t0
+                POOL_ESPERA.observe(espera)
+                span.set_attribute("db.pool.espera_ms", round(espera * 1000, 2))
+        cur = pila.enter_context(conn.cursor())
+        yield CursorConFallas(cur)

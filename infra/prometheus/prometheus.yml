@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+# La etiqueta "instancia" identifica el proceso en todos los paneles.
+scrape_configs:
+  - job_name: api
+    static_configs:
+      - targets: ["api-1:8000"]
+        labels: { instancia: api-1 }
+      - targets: ["api-2:8000"]
+        labels: { instancia: api-2 }
+  - job_name: worker
+    static_configs:
+      - targets: ["worker:9100"]
+        labels: { instancia: worker }
+  - job_name: ext-sap
+    static_configs:
+      - targets: ["ext-sap:8000"]
+        labels: { instancia: ext-sap }
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels: { instancia: postgres }
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

@@ -3,18 +3,21 @@
 Punto de falla ext_sap.notificar (D2: responde 503 en un % de llamadas).
 SAP_LATENCIA_MS fija la latencia base de una respuesta sana.
 """
-import logging
 import time
 
 from fastapi import FastAPI
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-from app import admin_fallas, config
+from app import admin_fallas, config, metricas, telemetria
 from lab.fallas.inyector import INYECTOR
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s [" + config.INSTANCIA + "] %(message)s")
+telemetria.configurar("ext-sap")
 
 app = FastAPI(title="Mock ext-sap")
 admin_fallas.instalar(app)
+metricas.instalar_http(app)
+metricas.registrar_colectores()
+FastAPIInstrumentor.instrument_app(app, excluded_urls="health,metrics")
 recibidas = 0
 
 

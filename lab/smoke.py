@@ -176,10 +176,70 @@ def main():
     c, _, _, _ = http("POST", "/admin/faults", {"id": "X1", "tipo": "latencia_fija", "target": "x", "probabilidad": 2})
     check(c == 422, f"falla inválida -> 422 ({c})")
 
+    observabilidad(provs)
+
     print("\nRESULTADO:", "OK" if not fallos else f"{len(fallos)} fallo(s)")
     for f in fallos:
         print("  -", f)
     sys.exit(1 if fallos else 0)
+
+
+def get_json(url):
+    with urllib.request.urlopen(url, timeout=10) as r:
+        return json.loads(r.read())
+
+
+def prom(expr):
+    import urllib.parse
+    return get_json(PROMETHEUS + "/api/v1/query?" + urllib.parse.urlencode({"query": expr}))["data"]["result"]
+
+
+def observabilidad(provs):
+    print("\n[10] Observabilidad (fase 2)")
+    objetivos = get_json(PROMETHEUS + "/api/v1/targets")["data"]["activeTargets"]
+    caidos = [t["labels"]["job"] for t in objetivos if t["health"] != "up"]
+    check(len(objetivos) >= 6 and not caidos, f"Prometheus raspa {len(objetivos)} targets, caídos: {caidos}")
+
+    c, r, _, _ = http("POST", "/ordenes", {"proveedor_id": provs[0], "cedi_id": 1, "total": 10})
+    req = urllib.request.Request(BASE + f"/ordenes/{r['orden_id']}")
+    with urllib.request.urlopen(req) as resp:
+        trace_id = resp.headers.get("X-Trace-Id")
+    check(bool(trace_id), f"la respuesta trae X-Trace-Id: {trace_id}")
+
+    # Traza del POST: api → worker → ext-sap con el mismo trace_id (via traceparent en el outbox).
+    req = urllib.request.Request(BASE + "/ordenes", data=json.dumps(
+        {"proveedor_id": provs[0], "cedi_id": 1, "total": 10}).encode(), method="POST",
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req) as resp:
+        tid_post = resp.headers.get("X-Trace-Id")
+
+    def servicios_de_traza():
+        try:
+            t = get_json(f"{JAEGER}/api/traces/{tid_post}")["data"][0]
+        except (urllib.error.HTTPError, IndexError, KeyError):
+            return None
+        s = {p["serviceName"] for p in t["processes"].values()}
+        return s if {"ordenes-api", "outbox-worker", "ext-sap"} <= s else None
+    s = esperar(servicios_de_traza, 20, 1)
+    check(bool(s), f"Jaeger: la traza del POST cruza api, worker y ext-sap: {sorted(s or [])}")
+
+    logs = subprocess.run(["docker", "compose", "logs", "--no-log-prefix", "--since", "2m", "api-1", "api-2"],
+                          capture_output=True, text=True).stdout.splitlines()
+    con_trace = [json.loads(l) for l in logs if tid_post and tid_post in l]
+    check(any(l.get("logger") == "acceso" and l.get("ruta") == "/ordenes" for l in con_trace),
+          f"log JSON de acceso con trace_id {tid_post}")
+
+    for metrica in ("http_peticion_duracion_segundos_bucket", "db_pool_conexiones", "outbox_lag_segundos",
+                    "falla_activa", "fallas_inyectadas_total", "pg_locks_count"):
+        check(bool(esperar(lambda: prom(metrica), 15, 1)), f"Prometheus tiene {metrica}")
+
+    tablero = get_json(GRAFANA + "/api/search?query=Laboratorio")
+    check(any(d.get("uid") == "lab-entregable3" for d in tablero), "Grafana: dashboard 'Laboratorio de fallas' provisionado")
+
+
+PROMETHEUS = os.environ.get("PROMETHEUS_URL", "http://localhost:9090")
+JAEGER = os.environ.get("JAEGER_URL", "http://localhost:16686")
+GRAFANA = os.environ.get("GRAFANA_URL", "http://localhost:3000")
 
 
 if __name__ == "__main__":

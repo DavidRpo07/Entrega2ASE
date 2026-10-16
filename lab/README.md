@@ -66,3 +66,35 @@ Notas:
 - Un proceso que arranca con una falla listada en `faults.yaml` la activa con su duración
   completa (p. ej. api-2 al volver en D1).
 - Sin correcciones todavía: el worker no reintenta con backoff ni tiene circuit breaker (fase 4).
+
+## Fase 2 — Observabilidad
+
+`make lab-up` levanta también Prometheus, Grafana, Jaeger y postgres-exporter;
+`make lab-smoke` verifica además targets, trazas, logs y el dashboard.
+
+| Herramienta | URL | Qué hay |
+| --- | --- | --- |
+| Grafana | http://localhost:3000 | Dashboard *Laboratorio de fallas — Entregable 3* (home, sin login) |
+| Prometheus | http://localhost:9090 | Scrape cada 5 s de api-1, api-2, worker, ext-sap y postgres-exporter |
+| Jaeger | http://localhost:16686 | Trazas OTLP de `ordenes-api`, `outbox-worker`, `ext-sap` |
+
+Métricas propias (etiqueta `instancia` puesta por Prometheus):
+
+| Métrica | Uso |
+| --- | --- |
+| `http_peticion_duracion_segundos{metodo,ruta,codigo}` | p50/p95/p99, throughput y % 5xx por ruta y réplica |
+| `db_pool_conexiones{estado}`, `db_pool_max`, `db_pool_esperando`, `db_pool_timeouts_total`, `db_pool_espera_segundos` | Pool de conexiones (B1) |
+| `outbox_pendientes`, `outbox_lag_segundos`, `outbox_publicados_total`, `outbox_fallos_total{motivo}`, `worker_pausado` | Outbox y consumidor (C2, D2) |
+| `ext_sap_llamada_duracion_segundos{resultado}` | Dependencia externa vista desde el worker |
+| `falla_activa{falla_id,tipo,target}` (1/0), `fallas_inyectadas_total{falla_id}` | Qué falla está activa y cuántas veces se aplicó |
+| `process_cpu_seconds_total` | CPU por proceso (C1) |
+| `pg_locks_count`, `pg_stat_activity_count`, `pg_stat_database_*` | PostgreSQL (B2) |
+
+Trazas: un span por módulo (`proveedores.validar_contrato`, `catalogo.validar_sku`, …), por
+consulta (`db.consulta`) y por espera de conexión (`db.pool.adquirir`); cada inyección es un
+evento `falla_inyectada` del span. El `traceparent` viaja en el payload del outbox, así que la
+publicación del worker y la llamada a ext-sap quedan en la misma traza que el `POST /ordenes`.
+Toda respuesta trae `X-Trace-Id`.
+
+Logs: una línea JSON por evento con `ts`, `nivel`, `logger`, `instancia`, `msg`, `trace_id`,
+`span_id` (y `ruta`, `codigo`, `duracion_ms` en el access log): `make lab-logs`.
