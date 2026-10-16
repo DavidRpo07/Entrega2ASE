@@ -5,6 +5,6 @@
 id: D1
 familia: disponibilidad
 falla: D1
-descripcion: Caída de api-2: docker stop al min 1 de la falla, start al min 4
+descripcion: "Caída de api-2: docker stop al min 1 de la falla, start al min 4"
 configuracion: {parametros: {servicio: api-2, caida_tras_s: 60, caida_s: 180}}
 # fases: {baseline_s: 300, falla_s: 300, recuperacion_s: 120}   # por defecto, de lab/slo.yaml
