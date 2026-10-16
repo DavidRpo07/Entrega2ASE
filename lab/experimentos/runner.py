@@ -302,7 +302,7 @@ def prechecks(timeline) -> dict:
 
 
 # ---------------------------------------------------------------- ejecución
-def correr_k6(run: str, duracion_s: int, slo: dict, dir_metrics: Path) -> subprocess.Popen:
+def correr_k6(run: str, duracion_s: int, slo: dict, dir_metrics: Path, log: Path) -> subprocess.Popen:
     carga = slo["carga"]
     datos = f"carga_s{carga['semilla']}_n{carga['n']}.json"
     if not (RAIZ / "lab/carga/datos" / datos).exists():
@@ -315,7 +315,10 @@ def correr_k6(run: str, duracion_s: int, slo: dict, dir_metrics: Path) -> subpro
            "-e", f"RATE={carga['tasa_rps']}", "-e", f"VUS={carga.get('vus_max', 1000)}", "-e", f"VUS_MAX={carga.get('vus_max', 1000)}", "-e", f"DURACION={duracion_s}s", "-e", f"ETIQUETA={run}",
            "--summary-export", "/salida/k6_resumen.json", "--out", "csv=/salida/k6_crudo.csv.gz",
            "/carga/k6/carga.js"]
-    return subprocess.Popen(cmd, cwd=RAIZ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # Salida directo a archivo, no a un pipe: con muchas peticiones fallidas k6 escribe >150 KB de
+    # avisos, llena el pipe (64 KB) si nadie lo lee y se bloquea al terminar.
+    with log.open("w", encoding="utf-8") as f:
+        return subprocess.Popen(cmd, cwd=RAIZ, stdout=f, stderr=subprocess.STDOUT)
 
 
 def primera_peticion(desde: float, timeout_s: float = 60) -> float:
@@ -619,14 +622,13 @@ def main():
         raise SystemExit(f"make lab-reset falló: {r.stderr}")
 
     lanzado = ahora()
-    k6 = correr_k6(run, total, slo, dirs["metrics"].resolve())
+    k6 = correr_k6(run, total, slo, dirs["metrics"].resolve(), dirs["logs"] / "k6.log")
     estado = {"actual": "arranque"}
     parar = threading.Event()
     hilo = threading.Thread(target=monitor, args=(timeline, parar, estado), daemon=True)
     vigia = VigiaReposo(timeline)
     vigia.start()
     marcas = {}
-    salida_k6 = ""
     try:
         # El baseline empieza con la primera petición real de k6 (vista en el log de nginx), no
         # con el arranque del contenedor: así las mismas claves caen en la misma fase en cada corrida.
@@ -647,12 +649,11 @@ def main():
         marcas["kill"] = kill_switch(timeline)
         estado["actual"] = "recuperacion"
         limite = ahora() + fases["recuperacion_s"] + 120
-        while k6.poll() is None:            # k6 corre con --quiet: la salida cabe en el pipe
+        while k6.poll() is None:
             if vigia.detectado.wait(0.5):
                 vigia.comprobar()
             if ahora() > limite:
                 raise TimeoutError("k6 no terminó a tiempo")
-        salida_k6 = k6.stdout.read()
         vigia.comprobar()
         marcas["fin"] = ahora()
         timeline("fin_carga", k6_codigo=k6.returncode)
@@ -672,7 +673,6 @@ def main():
     finally:
         parar.set()
         vigia.parar()
-    (dirs["logs"] / "k6.log").write_text(salida_k6 or "", encoding="utf-8")
 
     # ------------------------------------------------------------ evidencia
     print("recolectando evidencia…", flush=True)
