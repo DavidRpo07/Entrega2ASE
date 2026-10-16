@@ -1,4 +1,5 @@
-.PHONY: datos db-up db-down db-reset cargar verificar estrategias fase4 modulith medir limpiar-resultados test-lab
+.PHONY: datos db-up db-down db-reset cargar verificar estrategias fase4 modulith medir limpiar-resultados test-lab \
+	lab-up lab-down lab-ps lab-logs lab-smoke
 
 # Flujo obligatorio del entregable: genera → carga → verifica.
 datos: db-up
@@ -58,3 +59,31 @@ limpiar-resultados:
 # Entregable 3: tests del inyector de fallas (no requiere Docker).
 test-lab:
 	@python3 -m unittest discover -s lab/tests -t .
+
+# Entregable 3, fase 1: API (2 réplicas tras nginx), worker del outbox y mock ext-sap.
+# Requiere la base cargada (`make datos`). La API queda en http://localhost:8080
+LAB_SERVICIOS = api-1 api-2 worker ext-sap nginx
+LAB_RED = escalables-lab
+
+lab-up: db-up
+	@mkdir -p lab/runtime
+	@[ -f lab/runtime/faults.yaml ] || cp lab/faults.yaml lab/runtime/faults.yaml
+	@docker compose build api-1
+	@docker compose up --no-start --no-deps $(LAB_SERVICIOS)
+	@# postgres-escalables puede venir de `docker run` (fuera de compose): se une a la red del lab.
+	@docker network connect --alias postgres $(LAB_RED) postgres-escalables 2>/dev/null || true
+	@docker compose up -d --no-deps --wait $(LAB_SERVICIOS)
+	@echo "Laboratorio arriba: API en http://localhost:8080 (docs en /docs)"
+
+lab-down:
+	@docker compose rm -sf $(LAB_SERVICIOS)
+	@docker network disconnect $(LAB_RED) postgres-escalables 2>/dev/null || true
+
+lab-ps:
+	@docker compose ps $(LAB_SERVICIOS)
+
+lab-logs:
+	@docker compose logs -f --tail=100 $(LAB_SERVICIOS)
+
+lab-smoke:
+	@python3 lab/smoke.py

@@ -24,3 +24,6 @@ __pycache__/
 datos/resultados/logs/
 *.sqlite3
 *.db
+
+# Estado en caliente del laboratorio (faults.yaml que escribe /admin/faults)
+lab/runtime/

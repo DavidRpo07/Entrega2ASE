@@ -13,3 +13,83 @@ services:
       interval: 2s
       timeout: 5s
       retries: 30
+
+  # ---------------- Entregable 3: laboratorio de fallas ----------------
+  # Se levanta con `make lab-up`. No declaran depends_on: postgres porque
+  # postgres-escalables puede existir fuera de compose (Entregable 2);
+  # `make lab-up` lo conecta a esta red con el alias "postgres".
+  api-1: &api
+    build: { context: ., dockerfile: app/Dockerfile }
+    image: escalables-lab:latest
+    environment: &api-env
+      INSTANCIA: api-1
+      DB_HOST: postgres
+      POOL_MAX: "5"
+      POOL_TIMEOUT_S: "5"
+      FAULTS_FILE: /lab-runtime/faults.yaml
+      CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
+    volumes:
+      - ./lab/runtime:/lab-runtime
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  api-2:
+    <<: *api
+    environment:
+      <<: *api-env
+      INSTANCIA: api-2
+
+  worker:
+    image: escalables-lab:latest
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      api-1: { condition: service_started }   # misma imagen: espera a que se construya
+    environment:
+      <<: *api-env
+      INSTANCIA: worker
+      POOL_MAX: "2"
+      EXT_SAP_URL: http://ext-sap:8000
+      SAP_TIMEOUT_S: "30"
+    volumes:
+      - ./lab/runtime:/lab-runtime
+
+  ext-sap:
+    image: escalables-lab:latest
+    command: ["uvicorn", "app.ext_sap:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      api-1: { condition: service_started }
+    environment:
+      INSTANCIA: ext-sap
+      SAP_LATENCIA_MS: "20"
+      FAULTS_FILE: /lab-runtime/faults.yaml
+      CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
+    volumes:
+      - ./lab/runtime:/lab-runtime
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  nginx:
+    image: nginx:1.28.0
+    ports:
+      - "8080:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api-1: { condition: service_healthy }
+      api-2: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost/nginx-health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+networks:
+  default:
+    name: escalables-lab

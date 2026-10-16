@@ -1,0 +1,6 @@
+*
+!app/
+!datos/*.py
+!lab/
+lab/runtime/
+**/__pycache__
