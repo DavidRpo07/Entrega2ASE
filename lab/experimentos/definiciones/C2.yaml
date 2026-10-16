@@ -6,5 +6,5 @@ id: C2
 familia: degradacion
 falla: C2
 descripcion: Consumidor del outbox pausado
-configuracion: {}
+configuracion: {duracion_s: 180}   # 3 min, como el catálogo y la predicción (si no, el runner pausaría toda la fase)
 # fases: {baseline_s: 300, falla_s: 300, recuperacion_s: 120}   # por defecto, de lab/slo.yaml
