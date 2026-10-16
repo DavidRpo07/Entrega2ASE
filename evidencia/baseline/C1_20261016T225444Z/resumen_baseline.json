@@ -1,0 +1,50 @@
+{
+  "run": "C1_20261016T225444Z",
+  "desde_utc": "2026-10-16T22:54:48.860+00:00",
+  "hasta_utc": "2026-10-16T22:59:48.997+00:00",
+  "peticiones": 6003,
+  "throughput_rps": 20.0,
+  "post": {
+    "n": 4226,
+    "p50_ms": 5.7,
+    "p95_ms": 15.0,
+    "p99_ms": 29.9,
+    "max_ms": 63.7
+  },
+  "todas": {
+    "p50_ms": 6.3,
+    "p95_ms": 24.0,
+    "p99_ms": 40.0
+  },
+  "por_op": {
+    "crear": {
+      "n": 4226,
+      "p95_ms": 15.0
+    },
+    "listar": {
+      "n": 1192,
+      "p95_ms": 31.5
+    },
+    "precio": {
+      "n": 585,
+      "p95_ms": 8.4
+    }
+  },
+  "codigos": {
+    "200": 1777,
+    "201": 4226
+  },
+  "errores_pct": 0.0,
+  "no_enviadas": 0,
+  "planificadas": 6003,
+  "errores_pct_planificada": 0.0,
+  "peor_ventana_errores_enviadas_pct": 0.0,
+  "peor_ventana_errores_pct": 0.0,
+  "lag_max_s": 1.3,
+  "cumple": {
+    "p95": true,
+    "p99": true,
+    "errores": true,
+    "lag": true
+  }
+}
