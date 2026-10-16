@@ -1,15 +1,16 @@
-> **B1 intento 1 — inválida: kill switch atascado en la API saturada.**
+> **B1 intento 1 — inválida: reposo del host (y kill switch por HTTP en la API saturada).**
 > Corrida original `B1_20261016T212444Z` (carpetas renombradas; los archivos internos conservan ese id).
-> El runner mandó el kill switch como `DELETE /admin/faults` a través de nginx, a la misma API que la
-> falla había saturado (pool 5/5 y hasta 43 peticiones en espera por réplica, delante de los 40 hilos
-> de uvicorn). El DELETE esperó en esa fila y se aplicó a las 21:36:11, 82 s después de lo previsto:
-> la fase de falla duró 382 s (no 300) y la falla ya había expirado sola a los 330 s (`duracion_s`),
-> así que la "recuperación de 1 s" de abajo se midió desde una marca equivocada.
-> Además k6 agotó sus 200 VUs y dejó de enviar 1733 peticiones (`dropped_iterations`, ~2,2/s), que este
-> resumen no cuenta: el 51,9 % de errores es sobre lo enviado (11,6 req/s), no sobre los 20 req/s planificados.
-> Hallazgo para el informe: el mecanismo de mitigación (kill switch por HTTP) depende del mismo recurso
-> que la falla agota. Arreglo (commit 93911a5): kill switch escrito directo en `faults.yaml`, DELETE en
-> segundo plano, 1000 VUs prealocados y carga no enviada en el resumen. La corrida válida es la siguiente `B1_*`.
+> El Mac entró en reposo por inactividad (con batería) de 21:33:31 a 21:34:45 UTC, en plena fase de
+> falla (`pmset -g log`): Docker, k6 y el runner quedaron congelados 74 s. Por eso el kill switch se
+> aplicó a las 21:36:11, 82 s tarde: ~74 s de reposo más ~8 s que el `DELETE /admin/faults` esperó en
+> la API saturada (pool 5/5, hasta 43 peticiones en espera por réplica). La fase de falla duró 382 s
+> (no 300), la falla ya había expirado sola a los 330 s y la "recuperación de 1 s" de abajo se midió
+> desde una marca equivocada. Además k6 agotó sus 200 VUs y dejó de enviar 1733 peticiones
+> (`dropped_iterations`), que este resumen no cuenta: el 51,9 % de errores es sobre lo enviado.
+> (Una primera versión de esta nota atribuía los 82 s solo a la API; el reposo se descubrió en el intento 2.)
+> Arreglos: kill switch sin pasar por la API, 1000 VUs prealocados y carga no enviada en el resumen
+> (commit 93911a5); `caffeinate -i` y detector de suspensión en el runner. Hallazgo menor para el
+> informe: el kill switch por HTTP depende del recurso que la falla satura (en el intento 2 tardó 1,2 s).
 
 # Resultado B1_20261016T212444Z
 

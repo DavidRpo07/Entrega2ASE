@@ -120,8 +120,8 @@ with open(ruta[:-5] + ".lock", "w") as lock:
 
 def kill_switch_archivo() -> float:
     """Kill switch escrito directo en faults.yaml (mismo formato, lock y reemplazo atómico que
-    /admin/faults) sin pasar por la API: en B1 el DELETE por HTTP esperó 82 s en la fila de la
-    API saturada. Cada proceso lo aplica en su próxima recarga (FAULTS_RECARGA_S = 0,25 s).
+    /admin/faults) sin pasar por la API, que en B1 está saturada y atiende el DELETE en la misma
+    fila que la carga. Cada proceso lo aplica en su próxima recarga (FAULTS_RECARGA_S = 0,25 s).
     Devuelve la hora de la escritura (reloj del contenedor = reloj del host en Docker Desktop)."""
     r = sh("docker", "compose", "exec", "-T", "fallas-ext", "python", "-c", _KILL_PY)
     if r.returncode != 0:
@@ -182,6 +182,51 @@ def percentil(xs, p):
     k = (len(xs) - 1) * p / 100.0
     f, c = math.floor(k), math.ceil(k)
     return xs[f] if f == c else xs[f] * (c - k) + xs[c] * (k - f)
+
+
+class ReposoDetectado(RuntimeError):
+    """El host se suspendió (o se congeló) durante la carga: la corrida no es válida."""
+
+
+class VigiaReposo(threading.Thread):
+    """Detecta suspensiones del host. En macOS time.monotonic() no avanza mientras el equipo
+    duerme y time.time() sí: si el reloj de pared salta respecto del monotónico (o una vuelta
+    de 1 s tarda mucho más), Docker, k6 y el runner estuvieron congelados. En B1 (intentos 1 y 2)
+    el Mac entró en reposo 74 s y 56 s en plena falla y contaminó las dos corridas."""
+
+    def __init__(self, timeline, umbral_s: float = 3.0):
+        super().__init__(daemon=True)
+        self.timeline, self.umbral_s = timeline, umbral_s
+        self.detectado = threading.Event()
+        self.detalle = None
+        self._parar = threading.Event()
+
+    def run(self):
+        p_mono, p_pared = time.monotonic(), time.time()
+        while not self._parar.wait(1.0):
+            mono, pared = time.monotonic(), time.time()
+            d_mono, d_pared = mono - p_mono, pared - p_pared
+            if d_pared - d_mono > self.umbral_s or d_pared > 1.0 + 2 * self.umbral_s:
+                self.detalle = {"desde_utc": iso(p_pared), "hasta_utc": iso(pared),
+                                "salto_pared_s": round(d_pared, 1), "avance_monotonico_s": round(d_mono, 1)}
+                self.timeline("reposo_detectado", **self.detalle)
+                self.detectado.set()
+                return
+            p_mono, p_pared = mono, pared
+
+    def parar(self):
+        self._parar.set()
+
+    def comprobar(self):
+        if self.detectado.is_set():
+            raise ReposoDetectado(f"suspensión del host: {self.detalle}")
+
+    def esperar_hasta(self, t_pared: float):
+        """time.sleep interrumpible: vuelve en t_pared o lanza ReposoDetectado."""
+        while (falta := t_pared - ahora()) > 0:
+            if self.detectado.wait(min(falta, 0.5)):
+                break
+        self.comprobar()
 
 
 class Timeline:
@@ -578,7 +623,10 @@ def main():
     estado = {"actual": "arranque"}
     parar = threading.Event()
     hilo = threading.Thread(target=monitor, args=(timeline, parar, estado), daemon=True)
+    vigia = VigiaReposo(timeline)
+    vigia.start()
     marcas = {}
+    salida_k6 = ""
     try:
         # El baseline empieza con la primera petición real de k6 (vista en el log de nginx), no
         # con el arranque del contenedor: así las mismas claves caen en la misma fase en cada corrida.
@@ -586,7 +634,7 @@ def main():
         estado["actual"] = "baseline"
         timeline("fase_baseline", primera_peticion_utc=iso(marcas["baseline"]))
         hilo.start()
-        time.sleep(max(0.0, marcas["baseline"] + fases["baseline_s"] - ahora()))
+        vigia.esperar_hasta(marcas["baseline"] + fases["baseline_s"])
 
         c, resp = http("POST", f"{API}/admin/faults", exp["falla"])
         marcas["falla_on"] = ahora()
@@ -594,21 +642,36 @@ def main():
         timeline("falla_activada", codigo=c, config=exp["falla"])
         if c != 201:
             raise SystemExit(f"no se pudo activar la falla: {c} {resp}")
-        time.sleep(max(0.0, marcas["falla_on"] + fases["falla_s"] - ahora()))
+        vigia.esperar_hasta(marcas["falla_on"] + fases["falla_s"])
 
         marcas["kill"] = kill_switch(timeline)
         estado["actual"] = "recuperacion"
-        salida_k6, _ = k6.communicate(timeout=fases["recuperacion_s"] + 120)
+        limite = ahora() + fases["recuperacion_s"] + 120
+        while k6.poll() is None:            # k6 corre con --quiet: la salida cabe en el pipe
+            if vigia.detectado.wait(0.5):
+                vigia.comprobar()
+            if ahora() > limite:
+                raise TimeoutError("k6 no terminó a tiempo")
+        salida_k6 = k6.stdout.read()
+        vigia.comprobar()
         marcas["fin"] = ahora()
         timeline("fin_carga", k6_codigo=k6.returncode)
-    except BaseException:
-        timeline("abortado", detalle="kill switch de emergencia")
+    except BaseException as e:
+        timeline("abortado", detalle="kill switch de emergencia", motivo=f"{type(e).__name__}: {e}")
         kill_switch_archivo()
         http("DELETE", f"{API}/admin/faults")
         sh("docker", "rm", "-f", f"k6-{run.lower()}")
+        if isinstance(e, ReposoDetectado):
+            (dirs["results"] / "ABORTADA.md").write_text(
+                f"# {run} — ABORTADA: reposo del host\n\nEl detector de suspensión del runner vio que el reloj de pared "
+                f"saltó respecto del monotónico: `{json.dumps(vigia.detalle)}`.\nDocker, k6 y el runner estuvieron "
+                f"congelados; la corrida no es válida y no se analizó. Ver `logs/{run}/runner.jsonl`.\n", encoding="utf-8")
+            print(f"ABORTADA: {e}", file=sys.stderr)
+            raise SystemExit(3)
         raise
     finally:
         parar.set()
+        vigia.parar()
     (dirs["logs"] / "k6.log").write_text(salida_k6 or "", encoding="utf-8")
 
     # ------------------------------------------------------------ evidencia

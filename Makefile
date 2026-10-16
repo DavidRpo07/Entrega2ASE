@@ -119,14 +119,18 @@ lab-carga: $(CARGA)
 # Protocolo y SLO en lab/slo.yaml; evidencia en evidencia/{experiments,baseline,metrics,logs,traces,results}/<ID>_<UTC>/
 PY ?= $(if $(wildcard venv/bin/python),venv/bin/python,python3)
 
+# En macOS el runner corre bajo `caffeinate -i` (sin reposo por inactividad, también con batería):
+# en B1 el Mac se durmió en plena falla. El runner además aborta si detecta una suspensión.
+CAFEINA := $(shell command -v caffeinate >/dev/null 2>&1 && echo caffeinate -i)
+
 experimento:
 	@test -n "$(ID)" || (echo "uso: make experimento ID=A1" && exit 1)
-	@$(PY) lab/experimentos/runner.py --id $(ID)
+	@$(CAFEINA) $(PY) lab/experimentos/runner.py --id $(ID)
 
 # Corrida corta de prueba del runner (30 s + 30 s + 25 s, prefijo PRUEBA-, ignorada por git).
 experimento-prueba:
 	@test -n "$(ID)" || (echo "uso: make experimento-prueba ID=A1" && exit 1)
-	@$(PY) lab/experimentos/runner.py --id $(ID) --prueba
+	@$(CAFEINA) $(PY) lab/experimentos/runner.py --id $(ID) --prueba
 
 limpiar-pruebas:
 	@rm -rf evidencia/*/PRUEBA-*
