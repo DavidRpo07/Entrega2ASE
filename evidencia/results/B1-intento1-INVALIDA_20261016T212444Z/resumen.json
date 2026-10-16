@@ -1,0 +1,165 @@
+{
+  "run": "B1_20261016T212444Z",
+  "experimento": "B1",
+  "prueba": false,
+  "marcas_utc": {
+    "baseline": "2026-10-16T21:24:48.994+00:00",
+    "falla_on": "2026-10-16T21:29:49.036+00:00",
+    "kill": "2026-10-16T21:36:11.397+00:00",
+    "fin": "2026-10-16T21:38:03.537+00:00"
+  },
+  "por_fase": {
+    "baseline": {
+      "peticiones": 6002,
+      "throughput_rps": 20.0,
+      "post": {
+        "n": 4225,
+        "p50_ms": 5.3,
+        "p95_ms": 11.7,
+        "p99_ms": 26.7,
+        "max_ms": 80.6
+      },
+      "todas": {
+        "p50_ms": 5.9,
+        "p95_ms": 23.4,
+        "p99_ms": 29.5
+      },
+      "por_op": {
+        "crear": {
+          "n": 4225,
+          "p95_ms": 11.7
+        },
+        "listar": {
+          "n": 1192,
+          "p95_ms": 27.3
+        },
+        "precio": {
+          "n": 585,
+          "p95_ms": 6.9
+        }
+      },
+      "codigos": {
+        "200": 1777,
+        "201": 4225
+      },
+      "errores_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.1,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "falla": {
+      "peticiones": 4443,
+      "throughput_rps": 11.62,
+      "post": {
+        "n": 3099,
+        "p50_ms": 13741.4,
+        "p95_ms": 16159.7,
+        "p99_ms": 89042.8,
+        "max_ms": 89721.6
+      },
+      "todas": {
+        "p50_ms": 13664.3,
+        "p95_ms": 16101.3,
+        "p99_ms": 88860.6
+      },
+      "por_op": {
+        "crear": {
+          "n": 3099,
+          "p95_ms": 16159.7
+        },
+        "listar": {
+          "n": 902,
+          "p95_ms": 14283.0
+        },
+        "precio": {
+          "n": 442,
+          "p95_ms": 14197.0
+        }
+      },
+      "codigos": {
+        "200": 652,
+        "201": 1484,
+        "503": 2307
+      },
+      "errores_pct": 51.924,
+      "peor_ventana_errores_pct": 56.577,
+      "lag_max_s": 75.5,
+      "cumple": {
+        "p95": false,
+        "p99": false,
+        "errores": false,
+        "lag": false
+      }
+    },
+    "recuperacion": {
+      "peticiones": 2222,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 1542,
+        "p50_ms": 5.2,
+        "p95_ms": 12.7,
+        "p99_ms": 37.6,
+        "max_ms": 405.8
+      },
+      "todas": {
+        "p50_ms": 5.7,
+        "p95_ms": 21.5,
+        "p99_ms": 33.1
+      },
+      "por_op": {
+        "crear": {
+          "n": 1542,
+          "p95_ms": 12.7
+        },
+        "listar": {
+          "n": 441,
+          "p95_ms": 26.4
+        },
+        "precio": {
+          "n": 239,
+          "p95_ms": 6.4
+        }
+      },
+      "codigos": {
+        "200": 680,
+        "201": 1542
+      },
+      "errores_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 4.2,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    }
+  },
+  "recuperacion": {
+    "recuperado": true,
+    "segundos": 1.0,
+    "cliente_s": 1.0,
+    "lag_s": 0.0,
+    "cumple_slo": true
+  },
+  "slo": {
+    "p95_post_ms": 100,
+    "p99_post_ms": 250,
+    "errores_pct": 1.0,
+    "ventana_errores_s": 60,
+    "lag_outbox_s": 10,
+    "recuperacion_s": 20
+  },
+  "inyecciones": 10122,
+  "claves_expuestas_durante_falla": 4443,
+  "trazas": 35,
+  "enlaces": {
+    "grafana": "http://localhost:3000/d/lab-entregable3?from=1792185858994&to=1792186698537",
+    "jaeger": "http://localhost:16686/search?service=ordenes-api&start=1792186189036675&end=1792186571397900"
+  }
+}

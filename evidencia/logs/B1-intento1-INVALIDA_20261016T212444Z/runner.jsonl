@@ -1,0 +1,79 @@
+{"ts": "2026-10-16T21:24:44.776+00:00", "t": 1792185884.776, "evento": "inicio", "run": "B1_20261016T212444Z", "fases": {"baseline_s": 300, "falla_s": 300, "recuperacion_s": 120}}
+{"ts": "2026-10-16T21:24:44.886+00:00", "t": 1792185884.887, "evento": "prechecks", "replicas_vistas": ["api-1", "api-2"], "targets_caidos": [], "trazas_activas": 1.0, "contenedores_ajenos": []}
+{"ts": "2026-10-16T21:24:48.179+00:00", "t": 1792185888.18, "evento": "lab_reset", "salida": ["           0 |      0 |           466687", "(1 row)"]}
+{"ts": "2026-10-16T21:24:49.340+00:00", "t": 1792185889.34, "evento": "fase_baseline", "primera_peticion_utc": "2026-10-16T21:24:48.994+00:00"}
+{"ts": "2026-10-16T21:24:59.374+00:00", "t": 1792185899.374, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.3, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:25:09.414+00:00", "t": 1792185909.415, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.6, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:25:19.441+00:00", "t": 1792185919.442, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.9, "errores_pct_60s": 0.0, "lag_outbox_s": 0.6, "fallas_activas": []}
+{"ts": "2026-10-16T21:25:29.462+00:00", "t": 1792185929.462, "evento": "muestra", "fase": "baseline", "p95_post_ms": 12.2, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:25:39.494+00:00", "t": 1792185939.495, "evento": "muestra", "fase": "baseline", "p95_post_ms": 12.2, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:25:49.534+00:00", "t": 1792185949.534, "evento": "muestra", "fase": "baseline", "p95_post_ms": 10.0, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:25:59.558+00:00", "t": 1792185959.559, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 0.4, "fallas_activas": []}
+{"ts": "2026-10-16T21:26:09.584+00:00", "t": 1792185969.584, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.8, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:26:19.602+00:00", "t": 1792185979.603, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.9, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:26:29.630+00:00", "t": 1792185989.631, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 0.6, "fallas_activas": []}
+{"ts": "2026-10-16T21:26:39.654+00:00", "t": 1792185999.655, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 0.8, "fallas_activas": []}
+{"ts": "2026-10-16T21:26:49.683+00:00", "t": 1792186009.683, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.6, "errores_pct_60s": 0.0, "lag_outbox_s": 0.7, "fallas_activas": []}
+{"ts": "2026-10-16T21:26:59.711+00:00", "t": 1792186019.712, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:27:09.738+00:00", "t": 1792186029.739, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.6, "errores_pct_60s": 0.0, "lag_outbox_s": 0.9, "fallas_activas": []}
+{"ts": "2026-10-16T21:27:19.757+00:00", "t": 1792186039.757, "evento": "muestra", "fase": "baseline", "p95_post_ms": 12.2, "errores_pct_60s": 0.0, "lag_outbox_s": 0.1, "fallas_activas": []}
+{"ts": "2026-10-16T21:27:29.785+00:00", "t": 1792186049.786, "evento": "muestra", "fase": "baseline", "p95_post_ms": 13.3, "errores_pct_60s": 0.0, "lag_outbox_s": 1.0, "fallas_activas": []}
+{"ts": "2026-10-16T21:27:39.819+00:00", "t": 1792186059.819, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 0.4, "fallas_activas": []}
+{"ts": "2026-10-16T21:27:49.842+00:00", "t": 1792186069.843, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 0.6, "fallas_activas": []}
+{"ts": "2026-10-16T21:27:59.857+00:00", "t": 1792186079.857, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 0.8, "fallas_activas": []}
+{"ts": "2026-10-16T21:28:09.878+00:00", "t": 1792186089.879, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.8, "errores_pct_60s": 0.0, "lag_outbox_s": 0.7, "fallas_activas": []}
+{"ts": "2026-10-16T21:28:19.901+00:00", "t": 1792186099.902, "evento": "muestra", "fase": "baseline", "p95_post_ms": 10.2, "errores_pct_60s": 0.0, "lag_outbox_s": 0.3, "fallas_activas": []}
+{"ts": "2026-10-16T21:28:29.917+00:00", "t": 1792186109.918, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.9, "errores_pct_60s": 0.0, "lag_outbox_s": 0.8, "fallas_activas": []}
+{"ts": "2026-10-16T21:28:39.933+00:00", "t": 1792186119.933, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.6, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:28:49.960+00:00", "t": 1792186129.961, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.6, "errores_pct_60s": 0.0, "lag_outbox_s": 1.1, "fallas_activas": []}
+{"ts": "2026-10-16T21:28:59.981+00:00", "t": 1792186139.981, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 1.0, "fallas_activas": []}
+{"ts": "2026-10-16T21:29:10.001+00:00", "t": 1792186150.002, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 0.7, "fallas_activas": []}
+{"ts": "2026-10-16T21:29:20.019+00:00", "t": 1792186160.019, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.9, "errores_pct_60s": 0.0, "lag_outbox_s": 0.3, "fallas_activas": []}
+{"ts": "2026-10-16T21:29:30.045+00:00", "t": 1792186170.045, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.9, "errores_pct_60s": 0.0, "lag_outbox_s": 0.4, "fallas_activas": []}
+{"ts": "2026-10-16T21:29:40.058+00:00", "t": 1792186180.059, "evento": "muestra", "fase": "baseline", "p95_post_ms": 9.9, "errores_pct_60s": 0.0, "lag_outbox_s": 0.6, "fallas_activas": []}
+{"ts": "2026-10-16T21:29:49.036+00:00", "t": 1792186189.037, "evento": "falla_activada", "codigo": 201, "config": {"id": "B1", "familia": "base_de_datos", "descripcion": "Pool agotado — cada consulta retiene la conexión +300 ms (API con pool max 5)", "tipo": "retencion_conexion", "target": "db.consulta", "ms_fijos": 300, "probabilidad": 1.0, "duracion_s": 330, "semilla": 42}}
+{"ts": "2026-10-16T21:29:50.068+00:00", "t": 1792186190.068, "evento": "muestra", "fase": "falla", "p95_post_ms": 9.7, "errores_pct_60s": 0.0, "lag_outbox_s": 0.3, "fallas_activas": []}
+{"ts": "2026-10-16T21:30:00.091+00:00", "t": 1792186200.091, "evento": "muestra", "fase": "falla", "p95_post_ms": 4350.1, "errores_pct_60s": 0.3, "lag_outbox_s": 2.2, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:30:10.110+00:00", "t": 1792186210.11, "evento": "muestra", "fase": "falla", "p95_post_ms": 7661.0, "errores_pct_60s": 7.44, "lag_outbox_s": 2.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:30:20.138+00:00", "t": 1792186220.139, "evento": "muestra", "fase": "falla", "p95_post_ms": 10446.0, "errores_pct_60s": 17.21, "lag_outbox_s": 2.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:30:30.175+00:00", "t": 1792186230.176, "evento": "muestra", "fase": "falla", "p95_post_ms": 12301.1, "errores_pct_60s": 26.66, "lag_outbox_s": 1.8, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:30:40.202+00:00", "t": 1792186240.203, "evento": "muestra", "fase": "falla", "p95_post_ms": 12669.1, "errores_pct_60s": 39.22, "lag_outbox_s": 1.9, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:30:50.233+00:00", "t": 1792186250.234, "evento": "muestra", "fase": "falla", "p95_post_ms": 17744.4, "errores_pct_60s": 50.09, "lag_outbox_s": 2.2, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:31:00.258+00:00", "t": 1792186260.258, "evento": "muestra", "fase": "falla", "p95_post_ms": 19271.1, "errores_pct_60s": 54.4, "lag_outbox_s": 0.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:31:10.289+00:00", "t": 1792186270.289, "evento": "muestra", "fase": "falla", "p95_post_ms": 19565.9, "errores_pct_60s": 54.05, "lag_outbox_s": 2.2, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:31:20.317+00:00", "t": 1792186280.318, "evento": "muestra", "fase": "falla", "p95_post_ms": 19647.1, "errores_pct_60s": 54.25, "lag_outbox_s": 0.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:31:30.356+00:00", "t": 1792186290.357, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 55.78, "lag_outbox_s": 0.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:31:40.380+00:00", "t": 1792186300.38, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 55.7, "lag_outbox_s": 0.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:31:50.409+00:00", "t": 1792186310.409, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 55.24, "lag_outbox_s": 2.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:32:00.446+00:00", "t": 1792186320.446, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 55.3, "lag_outbox_s": 2.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:32:10.466+00:00", "t": 1792186330.467, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 56.19, "lag_outbox_s": 2.1, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:32:20.486+00:00", "t": 1792186340.487, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 56.38, "lag_outbox_s": 1.9, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:32:30.511+00:00", "t": 1792186350.511, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 55.61, "lag_outbox_s": 2.1, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:32:40.539+00:00", "t": 1792186360.54, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 56.6, "lag_outbox_s": 1.9, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:32:50.574+00:00", "t": 1792186370.575, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 55.29, "lag_outbox_s": 2.3, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:33:00.596+00:00", "t": 1792186380.597, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 53.83, "lag_outbox_s": 2.1, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:33:10.630+00:00", "t": 1792186390.631, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 52.42, "lag_outbox_s": 1.8, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:33:20.656+00:00", "t": 1792186400.657, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 52.75, "lag_outbox_s": 2.1, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:33:30.682+00:00", "t": 1792186410.682, "evento": "muestra", "fase": "falla", "p95_post_ms": 19650.0, "errores_pct_60s": 51.41, "lag_outbox_s": 2.4, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:34:54.237+00:00", "t": 1792186494.238, "evento": "muestra", "fase": "falla", "p95_post_ms": 19648.5, "errores_pct_60s": 51.79, "lag_outbox_s": 0.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:35:04.269+00:00", "t": 1792186504.269, "evento": "muestra", "fase": "falla", "p95_post_ms": 19639.5, "errores_pct_60s": 53.34, "lag_outbox_s": 2.3, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:35:14.287+00:00", "t": 1792186514.288, "evento": "muestra", "fase": "falla", "p95_post_ms": NaN, "errores_pct_60s": 0, "lag_outbox_s": 75.5, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:35:24.307+00:00", "t": 1792186524.307, "evento": "muestra", "fase": "falla", "p95_post_ms": 19631.2, "errores_pct_60s": 53.34, "lag_outbox_s": 2.3, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:35:34.329+00:00", "t": 1792186534.329, "evento": "muestra", "fase": "falla", "p95_post_ms": 19639.2, "errores_pct_60s": 53.69, "lag_outbox_s": 0.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:35:44.362+00:00", "t": 1792186544.363, "evento": "muestra", "fase": "falla", "p95_post_ms": 19644.6, "errores_pct_60s": 56.03, "lag_outbox_s": 2.3, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:35:54.385+00:00", "t": 1792186554.386, "evento": "muestra", "fase": "falla", "p95_post_ms": 19645.8, "errores_pct_60s": 54.61, "lag_outbox_s": 0.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:36:04.408+00:00", "t": 1792186564.409, "evento": "muestra", "fase": "falla", "p95_post_ms": 19635.0, "errores_pct_60s": 55.02, "lag_outbox_s": 2.3, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:36:11.398+00:00", "t": 1792186571.399, "evento": "kill_switch", "codigo": 200}
+{"ts": "2026-10-16T21:36:14.428+00:00", "t": 1792186574.428, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 19385.9, "errores_pct_60s": 43.01, "lag_outbox_s": 0.0, "fallas_activas": ["B1"]}
+{"ts": "2026-10-16T21:36:24.456+00:00", "t": 1792186584.456, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 18801.9, "errores_pct_60s": 32.49, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:36:34.486+00:00", "t": 1792186594.486, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 15746.1, "errores_pct_60s": 23.69, "lag_outbox_s": 0.4, "fallas_activas": []}
+{"ts": "2026-10-16T21:36:44.511+00:00", "t": 1792186604.511, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 9.9, "errores_pct_60s": 15.75, "lag_outbox_s": 0.7, "fallas_activas": []}
+{"ts": "2026-10-16T21:36:54.527+00:00", "t": 1792186614.527, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 9.8, "errores_pct_60s": 8.99, "lag_outbox_s": 1.0, "fallas_activas": []}
+{"ts": "2026-10-16T21:37:04.560+00:00", "t": 1792186624.56, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 9.8, "errores_pct_60s": 2.45, "lag_outbox_s": 0.9, "fallas_activas": []}
+{"ts": "2026-10-16T21:37:14.580+00:00", "t": 1792186634.58, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 9.9, "errores_pct_60s": 0.0, "lag_outbox_s": 0.7, "fallas_activas": []}
+{"ts": "2026-10-16T21:37:24.602+00:00", "t": 1792186644.603, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 10.0, "errores_pct_60s": 0.0, "lag_outbox_s": 0.4, "fallas_activas": []}
+{"ts": "2026-10-16T21:37:34.628+00:00", "t": 1792186654.628, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 11.6, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:37:44.655+00:00", "t": 1792186664.655, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 9.8, "errores_pct_60s": 0.0, "lag_outbox_s": 0.4, "fallas_activas": []}
+{"ts": "2026-10-16T21:37:54.685+00:00", "t": 1792186674.686, "evento": "muestra", "fase": "recuperacion", "p95_post_ms": 9.9, "errores_pct_60s": 0.0, "lag_outbox_s": 0.5, "fallas_activas": []}
+{"ts": "2026-10-16T21:38:03.537+00:00", "t": 1792186683.537, "evento": "fin_carga", "k6_codigo": 0}
+{"ts": "2026-10-16T21:38:09.526+00:00", "t": 1792186689.526, "evento": "evidencia_lista", "resultados": "evidencia/results/B1_20261016T212444Z"}
