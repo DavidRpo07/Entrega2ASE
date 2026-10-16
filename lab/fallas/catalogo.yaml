@@ -40,9 +40,12 @@ fallas:
 
   - id: B2
     familia: base_de_datos
-    descripcion: SELECT ... FOR UPDATE retenido 30 s cada 60 s sobre franjas del CEDI más usado (script del runner)
+    descripcion: SELECT ... FOR UPDATE retenido 30 s cada 60 s sobre las franjas del CEDI más usado
     tipo: externa
     target: logistica.franja_descargue
+    # Lo ejecuta el servicio fallas-ext (app/fallas_externas.py); el kill switch libera el lock.
+    # CEDI 5: el más usado en los primeros 12 min de la carga s42 (2.086 órdenes vs 1.985-2.010).
+    parametros: {cedi_id: 5, retencion_s: 30, ciclo_s: 60}
     duracion_s: 300
     semilla: 42
 
@@ -68,18 +71,21 @@ fallas:
   # ---------------- D · Riesgo de disponibilidad ----------------
   - id: D1
     familia: disponibilidad
-    descripcion: Caída de api-2 (docker stop min 1, start min 4; lo ejecuta el runner)
+    descripcion: Caída de api-2 (docker stop al min 1, start al min 4)
     tipo: externa
     target: api-2
+    # Lo ejecuta el servicio fallas-ext (docker stop/start); el kill switch la levanta.
+    parametros: {servicio: api-2, caida_tras_s: 60, caida_s: 180}
     duracion_s: 300
     semilla: 42
 
   - id: D2
     familia: disponibilidad
-    descripcion: Dependencia externa (mock SAP) responde 503 en 40 % de las llamadas
+    descripcion: Dependencia externa (mock SAP) tarda 2 s y responde 503 en 40 % de las llamadas
     tipo: error
     target: ext_sap.notificar
     codigo_http: 503
+    ms_fijos: 2000          # latencia antes del 503 (una 5xx externa real no es instantánea)
     probabilidad: 0.40
     duracion_s: 300
     semilla: 42

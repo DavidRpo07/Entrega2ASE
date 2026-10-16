@@ -6,9 +6,9 @@
 | --- | --- |
 | Sin redespliegue | `lab/faults.yaml` se relee cada segundo; `activar()` para `POST /admin/faults` |
 | Parametrizada | `probabilidad`, `porcentaje_trafico`, `duracion_s`, intensidad (`ms_fijos`, `mu`/`sigma`, `codigo_http`, `hilos`, `carga_cpu`) |
-| Focalizable | `target` por punto de falla (`catalogo.validar_sku`, `catalogo.*`, `api-1`) |
-| Reversible | `kill_switch()` / `kill_switch: true` en el archivo / `DELETE /admin/faults` |
-| Reproducible | `semilla` por falla; % de tráfico determinista por clave de petición |
+| Focalizable | `target` por punto de falla (`catalogo.validar_sku`, `catalogo.*`, `api-1`), `rutas` (`["POST /ordenes"]`), `instancias` (`["api-1"]`), `porcentaje_trafico` |
+| Reversible | `kill_switch()` / `kill_switch: true` en el archivo / `DELETE /admin/faults`; cubre también B2 (libera el lock) y D1 (levanta api-2) vía `fallas-ext` |
+| Reproducible | decisión por hash de (`semilla`, falla, clave de petición): la clave es `X-Clave-Carga` (índice de la carga, la envía k6), así que se afectan las mismas peticiones en cada corrida, sin importar orden de llegada ni réplica |
 
 - `lab/fallas/catalogo.yaml`: las 8 fallas (A1–D2) con sus parámetros.
 - `lab/faults.yaml`: fallas activas (vacío por defecto).
@@ -138,3 +138,28 @@ make lab-carga RATE=20 DURACION=2m ETIQUETA=baseline   # k6 → lab/carga/salida
 - k6 recorre la secuencia en orden a tasa constante (`constant-arrival-rate`), así que misma
   semilla + `make lab-reset` → mismas peticiones y mismos `orden_id`.
 - El cupo depende del estado inicial de las franjas: corra `make lab-reset` antes de cada corrida.
+
+## Revisión contra ENTREGABLE3.md (antes de la fase 3)
+
+- **Focalización**: además de `target`, cada falla acepta `rutas` (`"POST /ordenes"` o `"/catalogo/precio"`
+  para cualquier método) e `instancias` (`["api-1"]`). La ruta la fija la API por petición
+  (`RUTA_ACTUAL`); sin ruta (worker) una falla con `rutas` no aplica.
+- **Reproducibilidad**: con clave, `probabilidad`, `porcentaje_trafico` y la demora lognormal se
+  deciden por hash de (`semilla`, `id`, clave). k6 envía `X-Clave-Carga: c<i>`; la clave viaja en el
+  outbox hasta ext-sap (D2 afecta las mismas órdenes). Sin clave se usa el generador por falla.
+- **Fallas externas (B2, D1)**: las ejecuta el servicio `fallas-ext` (`app/fallas_externas.py`), que lee
+  el mismo `faults.yaml` y reconcilia cada 250 ms; se activan con `POST /admin/faults` como las demás
+  y el kill switch las revierte (B2: ROLLBACK del `SELECT … FOR UPDATE`; D1: `docker start`).
+  Parámetros en `parametros:` (ver catálogo). Usa el socket de Docker (solo para este lab local).
+- **D2**: `ms_fijos` es la latencia antes del 503 (2 s por defecto).
+- **Recursos**: paneles de memoria residente y GC por proceso; CPU y memoria por contenedor con
+  cAdvisor (incluido postgres). En Docker Desktop (snapshotter de containerd) cAdvisor no puede leer
+  los metadatos de Docker, así que mide los cgroups en crudo y el nombre del servicio sale del join
+  con `contenedor_info`, que publica `fallas-ext`.
+- **Overhead de observabilidad**: `TRAZAS=off make lab-up` apaga OpenTelemetry (sin spans ni
+  instrumentación); `make lab-up` lo vuelve a encender. La métrica `trazas_activas` deja constancia.
+- **SLO** en `lab/slo.yaml` (tasa 20 req/s; p95 POST ≤ 100 ms, p99 ≤ 250 ms, errores < 1 % en
+  ventanas de 60 s, lag < 10 s, recuperación < 20 s; fases 5 + 5 + 2 min). El dashboard toma de ahí
+  sus umbrales: `python3 infra/grafana/generar_dashboard.py` (venv activo).
+- **Hallazgo para B2** (no se corrige): el `UPDATE` de Q3 del Entregable 2 incrementa todas las franjas
+  disponibles del día, ~32 filas por orden; cada `POST /ordenes` bloquea esas filas.

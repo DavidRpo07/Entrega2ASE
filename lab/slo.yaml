@@ -1,0 +1,21 @@
+# Parámetros del laboratorio (Entregable 3, fase 3): SLO, carga y fases de cada experimento.
+# Los leen el runner (lab/experimentos/runner.py) y el generador del dashboard
+# (infra/grafana/generar_dashboard.py → umbrales de los paneles).
+
+carga:
+  tasa_rps: 20            # tasa constante de k6 (constant-arrival-rate)
+  semilla: 42
+  n: 30000                # operaciones generadas (la carga se recorre en orden desde el índice 0)
+
+slo:
+  p95_post_ms: 100        # POST /ordenes, p95
+  p99_post_ms: 250        # POST /ordenes, p99
+  errores_pct: 1.0        # % de respuestas 5xx o sin respuesta, por ventana de 60 s
+  ventana_errores_s: 60
+  lag_outbox_s: 10        # antigüedad del evento pendiente más viejo
+  recuperacion_s: 20      # tras el kill switch, tiempo hasta volver a cumplir el SLO
+
+fases:                    # cada experimento: make lab-reset → baseline → falla → recuperación
+  baseline_s: 300
+  falla_s: 300
+  recuperacion_s: 120

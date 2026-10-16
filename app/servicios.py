@@ -61,7 +61,7 @@ class OrdenesConFallas(OrdenesService):
         ord_id, prov_id, cedi_id, f_crea, f_ent, _f_rec, estado, total = dto
         payload = {"orden_id": ord_id, "proveedor_id": prov_id, "cedi_id": cedi_id,
                    "fecha_creacion": f_crea, "fecha_entrega_solicitada": f_ent,
-                   "estado": estado, "total": total}
+                   "estado": estado, "total": total, "clave": CLAVE_PETICION.get()}
         # traceparent: el worker continúa la misma traza al publicar a ext-sap.
         propagate.inject(payload.setdefault("trace", {}))
         self.cursor.execute(self._insert_outbox, (ord_id, json.dumps(payload)))

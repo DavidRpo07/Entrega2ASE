@@ -28,6 +28,7 @@ import os
 import random
 import threading
 import time
+from contextvars import ContextVar
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +38,9 @@ import yaml
 
 log = logging.getLogger("fallas")
 
+# Ruta de la petición en curso ("POST /ordenes"); la fija la API para el filtro `rutas`.
+RUTA_ACTUAL: ContextVar[Optional[str]] = ContextVar("ruta_actual", default=None)
+
 # Tipos soportados por el inyector en proceso. B2 (bloqueo en BD) y D1 (caída de
 # instancia) se ejecutan con scripts externos del runner, pero se registran aquí
 # como "externa" para que aparezcan en el estado y en las métricas.
@@ -44,7 +48,7 @@ TIPOS = {
     "latencia_fija",       # A1: duerme ms_fijos
     "latencia_lognormal",  # A2: duerme exp(N(mu, sigma)) ms
     "retencion_conexion",  # B1: duerme mientras retiene la conexión del pool
-    "error",               # D2: lanza FallaInyectada con codigo_http
+    "error",               # D2: espera ms_fijos y lanza FallaInyectada con codigo_http
     "cpu",                 # C1: hilos quemando CPU mientras la falla está activa
     "pausa",               # C2: el consumidor consulta pausado() y espera
     "externa",             # B2, D1: solo registro (los ejecuta el runner)
@@ -80,6 +84,10 @@ class Falla:
     # duración restante, y nada si ya expiró.
     inicio_utc: Optional[str] = None
     semilla: int = 42
+    # focalización adicional (opcional): solo en estas rutas ("POST /ordenes" o
+    # "/catalogo/precio" para cualquier método) y/o solo en estas instancias.
+    rutas: Optional[list] = None
+    instancias: Optional[list] = None
     # parámetros de intensidad (según tipo)
     ms_fijos: float = 0.0
     mu: float = 0.0
@@ -88,6 +96,8 @@ class Falla:
     codigo_http: int = 503
     hilos: int = 1
     carga_cpu: float = 0.9            # fracción de un núcleo por hilo
+    # parámetros libres de las fallas 'externa' (B2, D1), los interpreta app/fallas_externas.py
+    parametros: Optional[dict] = None
     # estado (no se configura)
     activada_en: Optional[float] = field(default=None, repr=False)
     _rng: random.Random = field(default=None, repr=False, compare=False)
@@ -107,6 +117,12 @@ class Falla:
             raise ConfiguracionInvalida(f"{self.id}: codigo_http debe ser 4xx o 5xx")
         if not 0.0 < self.carga_cpu <= 1.0:
             raise ConfiguracionInvalida(f"{self.id}: carga_cpu debe estar en (0, 1]")
+        for nombre in ("rutas", "instancias"):
+            valor = getattr(self, nombre)
+            if valor is not None and (not isinstance(valor, list) or not all(isinstance(x, str) for x in valor)):
+                raise ConfiguracionInvalida(f"{self.id}: {nombre} debe ser una lista de textos")
+        if self.parametros is not None and not isinstance(self.parametros, dict):
+            raise ConfiguracionInvalida(f"{self.id}: parametros debe ser un diccionario")
         if self.inicio_utc is not None:
             try:
                 epoch_de_iso(self.inicio_utc)
@@ -242,7 +258,7 @@ class Inyector:
         f._rng = random.Random(f"{f.semilla}:{f.id}")
         self._fallas[f.id] = f
         self.contadores.setdefault(f.id, 0)
-        if f.tipo == "cpu" and f.target in (self.instancia, "*"):
+        if f.tipo == "cpu" and f.target in (self.instancia, "*") and self._en_instancia(f):
             self._arrancar_cpu(f)
         log.warning("falla activada %s tipo=%s target=%s", f.id, f.tipo, f.target)
         for obs in self.observadores:
@@ -294,47 +310,73 @@ class Inyector:
         h = random.Random(f"{falla_id}|{clave}").random()
         return h * 100.0 < porcentaje
 
+    @staticmethod
+    def _sorteo(f: Falla, clave: str, sal: str) -> random.Random:
+        """Generador derivado de (semilla, falla, clave): la decisión sobre una
+        petición no depende del orden de llegada, ni de qué réplica la atiende."""
+        return random.Random(f"{f.semilla}|{f.id}|{clave}|{sal}")
+
     def _aplica(self, f: Falla, clave: Optional[str]) -> bool:
-        if clave is not None and not self._en_porcentaje(f.id, clave, f.porcentaje_trafico):
-            return False
-        if clave is None and f.porcentaje_trafico < 100.0:
-            # sin clave, el % de tráfico se trata como probabilidad adicional
-            if f._rng.random() * 100.0 >= f.porcentaje_trafico:
+        if clave is not None:
+            if not self._en_porcentaje(f.id, clave, f.porcentaje_trafico):
                 return False
+            return self._sorteo(f, clave, "p").random() < f.probabilidad
+        # sin clave: generador por falla (reproducible solo con la misma secuencia de llamadas)
+        if f.porcentaje_trafico < 100.0 and f._rng.random() * 100.0 >= f.porcentaje_trafico:
+            return False
         return f._rng.random() < f.probabilidad
 
-    def _coincide(self, f: Falla, target: str) -> bool:
+    def _en_instancia(self, f: Falla) -> bool:
+        return not f.instancias or self.instancia in f.instancias
+
+    @staticmethod
+    def _en_ruta(f: Falla, ruta: Optional[str]) -> bool:
+        if not f.rutas:
+            return True
+        if ruta is None:
+            return False
+        solo_path = ruta.split(" ", 1)[-1]
+        return any(r == ruta if " " in r else r == solo_path for r in f.rutas)
+
+    def _coincide(self, f: Falla, target: str, ruta: Optional[str] = None) -> bool:
+        if not self._en_instancia(f) or not self._en_ruta(f, ruta):
+            return False
         # "catalogo.*" coincide con "catalogo.validar_sku"
         if f.target.endswith(".*"):
             return target.startswith(f.target[:-1])
         return f.target == target
 
     # ------------------------------------------------------------------ efectos
-    def punto(self, target: str, clave: Optional[str] = None) -> float:
+    def punto(self, target: str, clave: Optional[str] = None, ruta: Optional[str] = None) -> float:
         """Aplica las fallas activas sobre este punto. Devuelve ms de retraso
-        inyectados (útil para logs/trazas). Puede lanzar FallaInyectada."""
+        inyectados (útil para logs/trazas). Puede lanzar FallaInyectada.
+        `clave` identifica la petición (decisión determinista); `ruta` (o
+        RUTA_ACTUAL) se compara con el filtro `rutas` de la falla."""
+        ruta = ruta if ruta is not None else RUTA_ACTUAL.get()
         retraso_ms = 0.0
         for f in self.activas():
-            if f.tipo in ("cpu", "pausa", "externa") or not self._coincide(f, target):
+            if f.tipo in ("cpu", "pausa", "externa") or not self._coincide(f, target, ruta):
                 continue
             with self._lock:
                 if not self._aplica(f, clave):
                     continue
                 if f.tipo == "latencia_lognormal":
-                    ms = min(math.exp(f._rng.gauss(f.mu, f.sigma)), f.max_ms)
-                elif f.tipo in ("latencia_fija", "retencion_conexion"):
-                    ms = f.ms_fijos
+                    rng = self._sorteo(f, clave, "ms") if clave is not None else f._rng
+                    ms = min(math.exp(rng.gauss(f.mu, f.sigma)), f.max_ms)
+                elif f.tipo in ("latencia_fija", "retencion_conexion", "error"):
+                    ms = f.ms_fijos            # en "error": latencia antes de fallar
                 else:
                     ms = 0.0
                 self.contadores[f.id] = self.contadores.get(f.id, 0) + 1
             for obs in self.observadores:
                 obs("inyectada", f)
-            log.info("falla inyectada id=%s target=%s ms=%.1f", f.id, target, ms)
-            if f.tipo == "error":
-                raise FallaInyectada(f.id, f.codigo_http)
+            log.info("falla inyectada id=%s target=%s ms=%.1f clave=%s", f.id, target, ms, clave,
+                     extra={"falla_id": f.id, "target": target, "clave": clave, "ruta": ruta, "ms": ms})
             if ms > 0:
                 self._dormir(ms / 1000.0)
                 retraso_ms += ms
+            if f.tipo == "error":
+                raise FallaInyectada(f.id, f.codigo_http)
         return retraso_ms
 
     def pausado(self, target: str) -> bool:

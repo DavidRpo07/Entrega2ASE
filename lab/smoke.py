@@ -176,6 +176,8 @@ def main():
     c, _, _, _ = http("POST", "/admin/faults", {"id": "X1", "tipo": "latencia_fija", "target": "x", "probabilidad": 2})
     check(c == 422, f"falla inválida -> 422 ({c})")
 
+    focalizacion_y_externas(provs)
+
     print("\n[10] Duración absoluta: un contenedor que reinicia aplica solo lo que queda")
     t0 = time.time()
     activar({"id": "A1", "probabilidad": 1.0, "duracion_s": 15})
@@ -196,6 +198,79 @@ def main():
     for f in fallos:
         print("  -", f)
     sys.exit(1 if fallos else 0)
+
+
+def estado_contenedor(servicio):
+    cid = subprocess.run(["docker", "compose", "ps", "-a", "-q", servicio], capture_output=True, text=True).stdout.strip()
+    return subprocess.run(["docker", "inspect", "-f", "{{.State.Status}}", cid], capture_output=True, text=True).stdout.strip()
+
+
+def focalizacion_y_externas(provs):
+    p = provs[0]
+    precio = f"/catalogo/precio?proveedor_id={p}&sku_id=101"
+
+    print("\n[F1] Filtro por ruta: A1 solo en POST /ordenes")
+    activar({"id": "A1", "probabilidad": 1.0, "duracion_s": 60, "rutas": ["POST /ordenes"]})
+    lat_get = [http("GET", precio)[3] for _ in range(4)]
+    lat_post = [http("POST", "/ordenes", {"proveedor_id": p, "cedi_id": 1, "total": 1})[3] for _ in range(2)]
+    check(max(lat_get) < 400 and min(lat_post) >= 800,
+          f"GET precio sin A1 {[round(x) for x in lat_get]} ms; POST con A1 {[round(x) for x in lat_post]} ms")
+    kill_switch()
+
+    print("\n[F2] Filtro por instancia: A1 solo en api-1")
+    activar({"id": "A1", "probabilidad": 1.0, "duracion_s": 60, "instancias": ["api-1"]})
+    por_inst = {}
+    for _ in range(8):
+        _, _, inst, ms = http("GET", precio)
+        por_inst.setdefault(inst, []).append(round(ms))
+    check(min(por_inst.get("api-1", [0])) >= 800 and max(por_inst.get("api-2", [9999])) < 400,
+          f"latencias por réplica: {por_inst}")
+    kill_switch()
+
+    print("\n[F3] D2: ext-sap tarda 2 s antes del 503")
+    antes = prom('sum(ext_sap_llamada_duracion_segundos_count{resultado="error"})')
+    antes = float(antes[0]["value"][1]) if antes else 0.0
+    activar({"id": "D2", "probabilidad": 1.0, "duracion_s": 60})
+    crear_ordenes(provs, 1)
+    time.sleep(10)   # 1+ llamadas de 2 s + scrape de Prometheus
+    r = prom('sum(ext_sap_llamada_duracion_segundos_count{resultado="error"}) - '
+             'sum(ext_sap_llamada_duracion_segundos_bucket{resultado="error",le="1.5"})')
+    lentas = float(r[0]["value"][1]) if r else 0.0
+    total = float(prom('sum(ext_sap_llamada_duracion_segundos_count{resultado="error"})')[0]["value"][1]) - antes
+    check(total >= 1 and lentas >= total, f"{total:.0f} llamadas fallidas nuevas, todas de más de 1,5 s")
+    kill_switch()
+    check(esperar(lambda: pendientes() == 0, 30), "tras kill switch el outbox se vacía")
+
+    print("\n[F4] B2: lock FOR UPDATE sobre las franjas del CEDI 5, y kill switch lo libera")
+    activar({"id": "B2", "duracion_s": 120, "parametros": {"cedi_id": 5, "retencion_s": 60, "ciclo_s": 120}})
+    time.sleep(1)
+    with ThreadPoolExecutor(1) as ex:
+        t0 = time.time()
+        fut = ex.submit(http, "POST", "/ordenes", {"proveedor_id": p, "cedi_id": 5, "total": 1})
+        time.sleep(3)
+        check(not fut.done(), "POST al CEDI 5 queda bloqueado por el lock")
+        t_kill = time.time()
+        kill_switch()
+        c, _, _, _ = fut.result(timeout=30)
+        liberado = time.time() - t_kill
+    check(c == 201 and liberado < 5, f"tras kill switch el POST termina ({c}) a los {liberado:.1f} s")
+    c, _, _, ms = http("POST", "/ordenes", {"proveedor_id": p, "cedi_id": 1, "total": 1})
+    check(c == 201 and ms < 500, f"otro CEDI no se ve afectado fuera del lock ({ms:.0f} ms)")
+
+    print("\n[F5] D1: caída de api-2 por fallas-ext y kill switch la levanta")
+    activar({"id": "D1", "duracion_s": 120, "parametros": {"servicio": "api-2", "caida_tras_s": 0, "caida_s": 120}})
+    check(esperar(lambda: estado_contenedor("api-2") == "exited", 15), "api-2 detenida")
+    codigos = [http("GET", "/health")[0] for _ in range(10)]
+    check(all(c == 200 for c in codigos[2:]), f"nginx sigue respondiendo con api-1: {codigos}")
+    t_kill = time.time()
+    kill_switch()
+    arriba = esperar(lambda: estado_contenedor("api-2") == "running" and "api-2" in {http("GET", "/health")[2] for _ in range(4)}, 30)
+    check(bool(arriba), f"api-2 vuelve a atender a los {time.time() - t_kill:.1f} s del kill switch")
+
+    print("\n[F6] cAdvisor: CPU y memoria por contenedor")
+    r = prom('sum by (servicio) (container_memory_working_set_bytes{id=~"/docker/.+"} * on (id) group_left (servicio) contenedor_info)')
+    servicios = {x["metric"].get("servicio") for x in r}
+    check({"postgres", "api-1", "api-2", "worker"} <= servicios, f"memoria por contenedor: {sorted(servicios)}")
 
 
 def get_json(url):

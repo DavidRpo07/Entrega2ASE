@@ -260,3 +260,77 @@ class TestIntegracion(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFocalizacionAdicional(unittest.TestCase):
+    def test_filtro_por_ruta(self):
+        iny, _ = nuevo()
+        iny.activar(falla(rutas=["POST /ordenes"]))
+        self.assertEqual(iny.punto("catalogo.validar_sku", ruta="POST /ordenes"), 800)
+        self.assertEqual(iny.punto("catalogo.validar_sku", ruta="GET /catalogo/precio"), 0)
+        self.assertEqual(iny.punto("catalogo.validar_sku"), 0)  # sin ruta (p. ej. worker)
+
+    def test_ruta_sin_metodo_y_contextvar(self):
+        from lab.fallas.inyector import RUTA_ACTUAL
+        iny, _ = nuevo()
+        iny.activar(falla(rutas=["/catalogo/precio"]))
+        token = RUTA_ACTUAL.set("GET /catalogo/precio")
+        try:
+            self.assertEqual(iny.punto("catalogo.validar_sku"), 800)
+        finally:
+            RUTA_ACTUAL.reset(token)
+
+    def test_filtro_por_instancia(self):
+        iny, _ = nuevo()                        # instancia api-1
+        iny.activar(falla(instancias=["api-2"]))
+        self.assertEqual(iny.punto("catalogo.validar_sku"), 0)
+        iny.activar(falla(instancias=["api-1", "api-2"]))
+        self.assertEqual(iny.punto("catalogo.validar_sku"), 800)
+
+    def test_error_con_latencia_previa(self):
+        iny, r = nuevo()
+        iny.activar(falla(id="D2", tipo="error", target="ext_sap.notificar", ms_fijos=2000, codigo_http=503))
+        with self.assertRaises(FallaInyectada) as ctx:
+            iny.punto("ext_sap.notificar", clave="1")
+        self.assertEqual(ctx.exception.codigo_http, 503)
+        self.assertEqual(r.dormido, [2.0])
+
+    def test_parametros_de_falla_externa(self):
+        iny, _ = nuevo()
+        f = iny.activar({"id": "B2", "tipo": "externa", "target": "logistica.franja_descargue",
+                         "parametros": {"cedi_id": 1, "retencion_s": 30, "ciclo_s": 60}})
+        self.assertEqual(f.parametros["cedi_id"], 1)
+        with self.assertRaises(ConfiguracionInvalida):
+            iny.activar(falla(rutas="POST /ordenes"))
+
+
+class TestDecisionPorClave(unittest.TestCase):
+    """Con clave, la decisión depende solo de (semilla, falla, clave): no del orden
+    de llegada ni de la réplica que atiende la petición."""
+
+    def afectadas(self, claves, semilla=42, instancia="api-1"):
+        r = Reloj()
+        iny = Inyector(reloj=r, dormir=r.dormir, intervalo_recarga_s=0, instancia=instancia)
+        iny.activar(falla(probabilidad=0.3, semilla=semilla))
+        return {c for c in claves if iny.punto("catalogo.validar_sku", clave=c) > 0}
+
+    def test_mismas_claves_afectadas_en_cualquier_orden_y_replica(self):
+        claves = [f"c{i}" for i in range(2000)]
+        base = self.afectadas(claves)
+        self.assertEqual(self.afectadas(list(reversed(claves))), base)
+        # repartidas entre dos réplicas (como nginx round-robin) dan el mismo conjunto
+        mitad1 = self.afectadas(claves[::2], instancia="api-1")
+        mitad2 = self.afectadas(claves[1::2], instancia="api-2")
+        self.assertEqual(mitad1 | mitad2, base)
+        self.assertAlmostEqual(len(base) / len(claves), 0.3, delta=0.04)
+
+    def test_otra_semilla_otras_claves(self):
+        claves = [f"c{i}" for i in range(2000)]
+        self.assertNotEqual(self.afectadas(claves, semilla=7), self.afectadas(claves))
+
+    def test_lognormal_por_clave_es_estable(self):
+        def demoras():
+            iny, r = nuevo()
+            iny.activar(falla(id="A2", tipo="latencia_lognormal", mu=5.5, sigma=1.0))
+            return [iny.punto("catalogo.validar_sku", clave=f"c{i}") for i in (3, 1, 2)]
+        self.assertEqual(demoras(), demoras())

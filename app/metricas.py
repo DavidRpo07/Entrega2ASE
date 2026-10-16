@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import yaml
-from prometheus_client import REGISTRY, Counter, Histogram
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
 
 from app import config
@@ -20,6 +20,7 @@ HTTP_DURACION = Histogram("http_peticion_duracion_segundos", "Duración de petic
 POOL_ESPERA = Histogram("db_pool_espera_segundos", "Tiempo esperando una conexión del pool", buckets=BUCKETS_S)
 OUTBOX_PUBLICADOS = Counter("outbox_publicados_total", "Eventos del outbox publicados a ext-sap")
 OUTBOX_FALLOS = Counter("outbox_fallos_total", "Intentos fallidos de publicar a ext-sap", ["motivo"])
+Gauge("trazas_activas", "1 si OpenTelemetry está activo en este proceso (TRAZAS)").set(1 if config.TRAZAS else 0)
 EXT_SAP_DURACION = Histogram("ext_sap_llamada_duracion_segundos", "Duración de llamadas del worker a ext-sap",
                              ["resultado"], buckets=BUCKETS_S)
 

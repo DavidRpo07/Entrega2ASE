@@ -39,9 +39,10 @@ const CODIGOS = [200, 201, 404, 422, 429, 500, 502, 503, 504, 0];
 const porCodigo = Object.fromEntries(CODIGOS.map((c) => [c, new Counter(`codigo_${c}`)]));
 const otros = new Counter('codigo_otro');
 
-const params = (op) => ({
-  headers: { 'Content-Type': 'application/json' },
-  tags: { op },
+const params = (op, i) => ({
+  // X-Clave-Carga: el inyector decide por (semilla, falla, clave) → mismas peticiones afectadas.
+  headers: { 'Content-Type': 'application/json', 'X-Clave-Carga': `c${i}` },
+  tags: { op, clave: `c${i}` },
   timeout: __ENV.TIMEOUT || '60s',
 });
 
@@ -50,11 +51,11 @@ export default function () {
   const it = items[i % items.length];
   let r;
   if (it.op === 'crear') {
-    r = http.post(`${BASE}/ordenes`, JSON.stringify(it.body), params('crear'));
+    r = http.post(`${BASE}/ordenes`, JSON.stringify(it.body), params('crear', i));
   } else if (it.op === 'listar') {
-    r = http.get(`${BASE}/proveedores/${it.proveedor_id}/ordenes?offset=${it.offset}`, params('listar'));
+    r = http.get(`${BASE}/proveedores/${it.proveedor_id}/ordenes?offset=${it.offset}`, params('listar', i));
   } else {
-    r = http.get(`${BASE}/catalogo/precio?proveedor_id=${it.proveedor_id}&sku_id=${it.sku_id}&fecha=${encodeURIComponent(it.fecha)}`, params('precio'));
+    r = http.get(`${BASE}/catalogo/precio?proveedor_id=${it.proveedor_id}&sku_id=${it.sku_id}&fecha=${encodeURIComponent(it.fecha)}`, params('precio', i));
   }
   latencia[it.op].add(r.timings.duration);
   (porCodigo[r.status] || otros).add(1);

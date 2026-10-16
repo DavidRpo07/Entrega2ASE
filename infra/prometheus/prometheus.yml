@@ -18,6 +18,20 @@ scrape_configs:
     static_configs:
       - targets: ["ext-sap:8000"]
         labels: { instancia: ext-sap }
+  - job_name: fallas-ext
+    static_configs:
+      - targets: ["fallas-ext:9100"]
+        labels: { instancia: fallas-ext }
+  - job_name: cadvisor
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["cadvisor:8080"]
+    # cAdvisor mide cgroups en crudo (ver compose.yaml): solo se guardan los de contenedores
+    # (/docker/<id>); el servicio sale del join con contenedor_info (lo publica fallas-ext).
+    metric_relabel_configs:
+      - source_labels: [id]
+        regex: /docker/[0-9a-f]+
+        action: keep
   - job_name: postgres
     static_configs:
       - targets: ["postgres-exporter:9187"]

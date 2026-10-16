@@ -3,6 +3,10 @@ import os
 
 INSTANCIA = os.environ.get("INSTANCIA", "local")
 
+# TRAZAS=off apaga OpenTelemetry por completo (sin spans, sin instrumentación de
+# FastAPI/httpx): experimento de overhead de observabilidad (trazas on vs off).
+TRAZAS = os.environ.get("TRAZAS", "on").lower() not in ("off", "0", "false", "no")
+
 DB_DSN = os.environ.get(
     "DB_DSN",
     "host={h} port={p} dbname=escalables user=postgres password=postgres".format(

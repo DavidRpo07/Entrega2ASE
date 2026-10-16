@@ -62,8 +62,24 @@ def _observar_fallas(evento: str, falla) -> None:
         span.set_attribute("falla.id", falla.id)
 
 
+def instrumentar_fastapi(app) -> None:
+    if config.TRAZAS:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        FastAPIInstrumentor.instrument_app(app, excluded_urls="health,metrics")
+
+
+def instrumentar_httpx() -> None:
+    if config.TRAZAS:
+        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+        HTTPXClientInstrumentor().instrument()
+
+
 def configurar(servicio: str) -> trace.Tracer:
     _configurar_logs()
+    if not config.TRAZAS:
+        # Sin TracerProvider: la API de OTel queda en no-op (spans vacíos, trace_id nulo).
+        logging.getLogger("telemetria").warning("trazas desactivadas (TRAZAS=off)")
+        return trace.get_tracer(servicio)
     recurso = Resource.create({"service.name": servicio, "service.instance.id": config.INSTANCIA})
     proveedor = TracerProvider(resource=recurso)
     if os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):

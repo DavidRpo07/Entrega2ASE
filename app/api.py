@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException, Query
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from fastapi.responses import JSONResponse
 from psycopg.rows import dict_row
 from psycopg_pool import PoolTimeout
@@ -47,7 +46,7 @@ admin_fallas.instalar(app)
 metricas.instalar_http(app)
 metricas.registrar_colectores(lambda: db.POOL)
 # Se instrumenta al final: su middleware queda por fuera y el access log ya ve el trace_id.
-FastAPIInstrumentor.instrument_app(app, excluded_urls="health,metrics")
+telemetria.instrumentar_fastapi(app)
 
 
 @app.exception_handler(PoolTimeout)
@@ -77,7 +76,7 @@ def crear_orden(orden: OrdenIn):
     with db.transaccion() as cur:
         cur.execute("SELECT nextval('ordenes.api_orden_seq')")
         orden_id = cur.fetchone()[0]
-        db.CLAVE_PETICION.set(str(orden_id))
+        db.clave_por_defecto(str(orden_id))
         dto = (orden_id, orden.proveedor_id, orden.cedi_id, f_crea.strftime(fmt), f_ent.strftime(fmt),
                None, "PENDIENTE", orden.total)
         try:
@@ -90,7 +89,7 @@ def crear_orden(orden: OrdenIn):
 # ------------------------------------------------------------------ lectura
 @app.get("/ordenes/{orden_id}")
 def obtener_orden(orden_id: int):
-    db.CLAVE_PETICION.set(str(orden_id))
+    db.clave_por_defecto(str(orden_id))
     with db.transaccion() as cur:
         cur.row_factory = dict_row
         cur.execute("SELECT * FROM ordenes.orden_compra WHERE orden_id = %s", (orden_id,))
@@ -109,7 +108,7 @@ def obtener_orden(orden_id: int):
 @app.get("/proveedores/{proveedor_id}/ordenes")
 def ordenes_de_proveedor(proveedor_id: int, offset: int = Query(0, ge=0)):
     """Q5 del Entregable 2: últimas órdenes del proveedor (paginado de 50)."""
-    db.CLAVE_PETICION.set(str(proveedor_id))
+    db.clave_por_defecto(str(proveedor_id))
     with db.transaccion() as cur:
         cur.row_factory = dict_row
         cur.execute(QUERY_Q5, (proveedor_id, offset))
@@ -119,7 +118,7 @@ def ordenes_de_proveedor(proveedor_id: int, offset: int = Query(0, ge=0)):
 @app.get("/proveedores/{proveedor_id}/otif")
 def otif_de_proveedor(proveedor_id: int):
     """Q4 del Entregable 2: fill rate y OTIF por categoría y mes."""
-    db.CLAVE_PETICION.set(str(proveedor_id))
+    db.clave_por_defecto(str(proveedor_id))
     with db.transaccion() as cur:
         cur.row_factory = dict_row
         cur.execute(QUERY_Q4, (proveedor_id,))
@@ -130,7 +129,7 @@ def otif_de_proveedor(proveedor_id: int):
 def precio(proveedor_id: int, sku_id: int, fecha: datetime | None = None):
     """Q2 del Entregable 2 a través del módulo de catálogo (punto catalogo.validar_sku).
     `fecha` explícita (por defecto ahora) hace la carga independiente del reloj."""
-    db.CLAVE_PETICION.set(f"{proveedor_id}:{sku_id}")
+    db.clave_por_defecto(f"{proveedor_id}:{sku_id}")
     with db.transaccion() as cur:
         valor = CatalogoConFallas(cur).validar_sku_y_obtener_precio(
             proveedor_id, sku_id, (fecha or _ahora()).isoformat())

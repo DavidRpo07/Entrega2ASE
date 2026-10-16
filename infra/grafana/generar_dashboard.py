@@ -1,10 +1,19 @@
 """Genera infra/grafana/dashboards/laboratorio.json (el dashboard se versiona como JSON;
-este script es su fuente). Uso:  python3 infra/grafana/generar_dashboard.py
+este script es su fuente). Los umbrales salen de lab/slo.yaml.
+Uso (con el venv activo, necesita pyyaml):  python3 infra/grafana/generar_dashboard.py
 """
 import json
 from pathlib import Path
 
-SALIDA = Path(__file__).resolve().parent / "dashboards" / "laboratorio.json"
+import yaml
+
+RAIZ = Path(__file__).resolve().parents[2]
+SALIDA = RAIZ / "infra" / "grafana" / "dashboards" / "laboratorio.json"
+SLO = yaml.safe_load((RAIZ / "lab" / "slo.yaml").read_text(encoding="utf-8"))["slo"]
+P95, P99 = SLO["p95_post_ms"], SLO["p99_post_ms"]
+ERR = SLO["errores_pct"] / 100.0
+VENTANA_ERR = f'{SLO["ventana_errores_s"]}s'
+LAG = SLO["lag_outbox_s"]
 DS = {"type": "prometheus", "uid": "prometheus"}
 pid = [0]
 
@@ -46,26 +55,38 @@ SEL = API + ',metodo=~"$metodo",ruta=~"$ruta"'
 q = lambda p, s: f'1000 * histogram_quantile({p}, sum by (le) (rate({H}_bucket{{{s}}}[{R}])))'
 umbral = lambda verde_hasta, rojo: {"fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [
     {"color": "green", "value": None}, {"color": "orange", "value": verde_hasta}, {"color": "red", "value": rojo}]}}}}
+# Línea punteada del SLO en series de tiempo.
+linea_slo = lambda *pasos: fusionar(umbral(*pasos), {"fieldConfig": {"defaults": {"custom": {"thresholdsStyle": {"mode": "dashed"}}}}})
+ERRORES = lambda por="": (f'sum{por} (rate({H}_count{{{API},codigo=~"5.."}}[{VENTANA_ERR}])) / '
+                          f'clamp_min(sum{por} (rate({H}_count{{{API}}}[{VENTANA_ERR}])), 1e-9)')
+# cAdvisor (cgroups en crudo) unido con contenedor_info para tener el nombre del servicio.
+CAD = lambda m: f'sum by (servicio) ({m} * on (id) group_left (servicio) contenedor_info{{proyecto="$proyecto"}})'
 
 panels = [
   row("Resumen (API detrás de nginx)", 0),
   panel("Throughput", [(f'sum(rate({H}_count{{{API}}}[{R}]))', "req/s")], 0, 1, 4, 4, "stat", "reqps"),
-  panel("Errores 5xx", [(f'sum(rate({H}_count{{{API},codigo=~"5.."}}[{R}])) / clamp_min(sum(rate({H}_count{{{API}}}[{R}])), 1e-9)', "5xx")],
-        4, 1, 4, 4, "stat", "percentunit", extra=umbral(0.01, 0.05)),
-  panel("p95 $metodo $ruta", [(q(0.95, SEL), "p95")], 8, 1, 4, 4, "stat", "ms", extra=umbral(500, 2000)),
-  panel("p99 $metodo $ruta", [(q(0.99, SEL), "p99")], 12, 1, 4, 4, "stat", "ms", extra=umbral(1000, 5000)),
-  panel("Lag del outbox", [('max(outbox_lag_segundos)', "lag")], 16, 1, 4, 4, "stat", "s", extra=umbral(5, 30)),
+  panel(f"Errores 5xx (ventana {VENTANA_ERR})", [(ERRORES(), "5xx")],
+        4, 1, 4, 4, "stat", "percentunit", desc=f"SLO: < {SLO['errores_pct']} % por ventana de {VENTANA_ERR}.",
+        extra=umbral(ERR / 2, ERR)),
+  panel("p95 $metodo $ruta", [(q(0.95, SEL), "p95")], 8, 1, 4, 4, "stat", "ms",
+        desc=f"SLO (POST /ordenes): p95 ≤ {P95} ms.", extra=umbral(0.8 * P95, P95)),
+  panel("p99 $metodo $ruta", [(q(0.99, SEL), "p99")], 12, 1, 4, 4, "stat", "ms",
+        desc=f"SLO (POST /ordenes): p99 ≤ {P99} ms.", extra=umbral(0.8 * P99, P99)),
+  panel("Lag del outbox", [('max(outbox_lag_segundos)', "lag")], 16, 1, 4, 4, "stat", "s",
+        desc=f"SLO: < {LAG} s.", extra=umbral(LAG / 2, LAG)),
   panel("Fallas activas", [('count(count by (falla_id) (falla_activa == 1)) or vector(0)', "activas")], 20, 1, 4, 4, "stat", "short",
         extra=umbral(1, 1)),
 
   row("Latencia y errores", 5),
   panel("Latencia $metodo $ruta — p50 / p95 / p99", [(q(0.50, SEL), "p50"), (q(0.95, SEL), "p95"), (q(0.99, SEL), "p99")],
-        0, 6, 12, 9, unit="ms", desc="Cuantiles del histograma http_peticion_duracion_segundos (ambas réplicas)."),
+        0, 6, 12, 9, unit="ms", extra=linea_slo(P95, P99),
+        desc=f"Cuantiles del histograma (ambas réplicas). Líneas: SLO p95 {P95} ms y p99 {P99} ms (aplican a POST /ordenes)."),
   panel("p95 por réplica — $metodo $ruta", [(f'1000 * histogram_quantile(0.95, sum by (le, instancia) (rate({H}_bucket{{{SEL}}}[{R}])))', "{{instancia}}")],
-        12, 6, 12, 9, unit="ms", desc="Permite ver C1 (solo api-1) y D1 (api-2 caída)."),
+        12, 6, 12, 9, unit="ms", extra=linea_slo(P95, P99), desc="Permite ver C1 (solo api-1) y D1 (api-2 caída)."),
   panel("Peticiones/s por código", [(f'sum by (codigo) (rate({H}_count{{{API}}}[{R}]))', "{{codigo}}")], 0, 15, 12, 8, unit="reqps"),
-  panel("% errores 5xx por réplica", [(f'sum by (instancia) (rate({H}_count{{{API},codigo=~"5.."}}[{R}])) / clamp_min(sum by (instancia) (rate({H}_count{{{API}}}[{R}])), 1e-9)', "{{instancia}}")],
-        12, 15, 12, 8, unit="percentunit"),
+  panel(f"% errores 5xx por réplica (ventana {VENTANA_ERR})", [(ERRORES(" by (instancia)"), "{{instancia}}")],
+        12, 15, 12, 8, unit="percentunit", extra=linea_slo(ERR, ERR),
+        desc="Visto por la API. Los 502 de nginx (réplica caída) no llegan aquí: ver k6 y el log de nginx."),
 
   row("Pool de conexiones (psycopg_pool, max 5 por réplica)", 23),
   panel("Conexiones en uso vs máximo", [('db_pool_conexiones{job="api",estado="en_uso"}', "en uso {{instancia}}"),
@@ -92,8 +113,11 @@ panels = [
    "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [
        {"color": "transparent", "value": None}, {"color": "red", "value": 1}]}}, "overrides": []}},
   panel("Inyecciones por segundo", [(f'sum by (falla_id) (rate(fallas_inyectadas_total[{R}]))', "{{falla_id}}")], 12, 42, 6, 8),
-  panel("CPU por proceso", [(f'rate(process_cpu_seconds_total{{job=~"api|worker|ext-sap"}}[{R}])', "{{instancia}}")], 18, 42, 6, 8,
-        unit="percentunit", desc="1.0 = un núcleo. C1 debe subir solo api-1."),
+  {**panel("Efectos de fallas externas (fallas-ext)", [('max by (falla_id, efecto) (falla_externa_efecto)', "{{falla_id}} {{efecto}}")],
+           18, 42, 6, 8, "state-timeline", desc="B2: lock FOR UPDATE retenido. D1: servicio detenido."),
+   "options": {"showValue": "never", "mergeValues": True, "rowHeight": 0.8},
+   "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [
+       {"color": "transparent", "value": None}, {"color": "purple", "value": 1}]}}, "overrides": []}},
 
   row("PostgreSQL (postgres-exporter)", 50),
   panel("Conexiones por estado", [('sum by (state) (pg_stat_activity_count{datname="escalables"})', "{{state}}")], 0, 51, 8, 8),
@@ -102,6 +126,21 @@ panels = [
   panel("Transacciones/s", [(f'rate(pg_stat_database_xact_commit{{datname="escalables"}}[{R}])', "commit"),
                             (f'rate(pg_stat_database_xact_rollback{{datname="escalables"}}[{R}])', "rollback"),
                             (f'rate(pg_stat_database_deadlocks{{datname="escalables"}}[{R}])', "deadlocks")], 16, 51, 8, 8),
+
+  row("Recursos por proceso (Python)", 59),
+  panel("CPU por proceso", [(f'rate(process_cpu_seconds_total{{job=~"api|worker|ext-sap"}}[{R}])', "{{instancia}}")], 0, 60, 8, 8,
+        unit="percentunit", desc="1.0 = un núcleo. C1 debe subir solo api-1."),
+  panel("Memoria residente por proceso", [('process_resident_memory_bytes{job=~"api|worker|ext-sap|fallas-ext"}', "{{instancia}}")],
+        8, 60, 8, 8, unit="bytes"),
+  panel("GC: colecciones/s por generación", [(f'sum by (instancia, generation) (rate(python_gc_collections_total{{job=~"api|worker|ext-sap"}}[{R}]))',
+                                              "{{instancia}} gen{{generation}}")], 16, 60, 8, 8,
+        desc="Recolecciones del GC de CPython; una subida con latencia alta apunta a presión de memoria."),
+
+  row("Contenedores (cAdvisor)", 68),
+  panel("CPU por contenedor", [(CAD(f'rate(container_cpu_usage_seconds_total{{id=~"/docker/.+"}}[{R}])'), "{{servicio}}")],
+        0, 69, 12, 8, unit="percentunit", desc="Incluye postgres, nginx y la observabilidad (su costo)."),
+  panel("Memoria por contenedor (working set)", [(CAD('container_memory_working_set_bytes{id=~"/docker/.+"}'), "{{servicio}}")],
+        12, 69, 12, 8, unit="bytes"),
 ]
 
 def var(name, query, default):
@@ -113,7 +152,8 @@ dash = {
   "uid": "lab-entregable3", "title": "Laboratorio de fallas — Entregable 3", "tags": ["entregable3"],
   "timezone": "browser", "schemaVersion": 39, "version": 1, "refresh": "5s",
   "time": {"from": "now-15m", "to": "now"},
-  "templating": {"list": [var("metodo", 'label_values(http_peticion_duracion_segundos_count{job="api"}, metodo)', "POST"),
+  "templating": {"list": [var("proyecto", 'label_values(contenedor_info, proyecto)', "proyectoase"),
+                          var("metodo", 'label_values(http_peticion_duracion_segundos_count{job="api"}, metodo)', "POST"),
                           var("ruta", 'label_values(http_peticion_duracion_segundos_count{job="api", metodo=~"$metodo"}, ruta)', "/ordenes")]},
   "annotations": {"list": [
     {"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": True, "hide": True,

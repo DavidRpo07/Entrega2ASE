@@ -31,6 +31,7 @@ services:
       FAULTS_FILE: /lab-runtime/faults.yaml
       CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      TRAZAS: ${TRAZAS:-on}          # TRAZAS=off make lab-up → experimento de overhead
     volumes:
       - ./lab/runtime:/lab-runtime
     healthcheck:
@@ -78,10 +79,37 @@ services:
       FAULTS_FILE: /lab-runtime/faults.yaml
       CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      TRAZAS: ${TRAZAS:-on}
     volumes:
       - ./lab/runtime:/lab-runtime
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Ejecuta las fallas 'externa' (B2: lock en BD, D1: docker stop/start) leyendo el
+  # mismo faults.yaml; el kill switch las revierte. Necesita el socket de Docker
+  # (acceso total a Docker del host: solo para este laboratorio local).
+  fallas-ext:
+    image: escalables-lab:latest
+    command: ["python", "-m", "app.fallas_externas"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      api-1: { condition: service_started }
+    environment:
+      INSTANCIA: fallas-ext
+      DB_HOST: postgres
+      FAULTS_FILE: /lab-runtime/faults.yaml
+      CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+      TRAZAS: ${TRAZAS:-on}
+      METRICS_PORT: "9100"
+    volumes:
+      - ./lab/runtime:/lab-runtime
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9100/metrics', timeout=3)"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -145,6 +173,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
+
+  # CPU y memoria por contenedor (incluido postgres).
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    # Docker Desktop usa el snapshotter de containerd, que el factory de Docker de cAdvisor no
+    # soporta ("failed to identify the read-write layer ID"). Sin socket de Docker, cAdvisor mide
+    # los cgroups /docker/<id> en crudo; fallas-ext publica contenedor_info{id,servicio} para el join.
+    command: ["--docker_only=false", "--housekeeping_interval=5s",
+              "--disable_metrics=disk,diskIO,network,tcp,udp,percpu,sched,process,hugetlb,referenced_memory,cpu_topology,resctrl"]
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
 
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.16.0

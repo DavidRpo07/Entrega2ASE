@@ -18,7 +18,6 @@ import time
 
 import httpx
 from opentelemetry import propagate
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.trace import SpanKind, Status, StatusCode
 from prometheus_client import Gauge, start_http_server
 
@@ -104,7 +103,7 @@ def main():
     signal.signal(signal.SIGINT, _parar)
     metricas.registrar_colectores(lambda: db.POOL)
     start_http_server(int(os.environ.get("METRICS_PORT", "9100")))
-    HTTPXClientInstrumentor().instrument()
+    telemetria.instrumentar_httpx()
     db.abrir_pool().wait(timeout=60)
     threading.Thread(target=medir_outbox, daemon=True, name="medir-outbox").start()
     log.info("worker listo: lote=%s ext-sap=%s timeout=%ss", config.WORKER_LOTE, config.EXT_SAP_URL, config.SAP_TIMEOUT_S)

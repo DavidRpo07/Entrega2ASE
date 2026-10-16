@@ -13,12 +13,13 @@ import time
 from pathlib import Path
 
 import yaml
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app import config
-from lab.fallas.inyector import (INYECTOR, ConfiguracionInvalida, FallaInyectada, epoch_de_iso,
-                                 falla_desde_dict, iso_de_epoch)
+from app.db import CLAVE_PETICION
+from lab.fallas.inyector import (INYECTOR, RUTA_ACTUAL, ConfiguracionInvalida, FallaInyectada,
+                                 epoch_de_iso, falla_desde_dict, iso_de_epoch)
 
 router = APIRouter(prefix="/admin/faults", tags=["admin"])
 
@@ -122,7 +123,20 @@ async def manejar_falla_inyectada(_request: Request, exc: FallaInyectada):
                                  "instancia": config.INSTANCIA})
 
 
+async def contexto_peticion(request: Request):
+    """Ruta ("POST /ordenes") para el filtro `rutas` de las fallas, y clave de la
+    petición desde X-Clave-Carga (la envía k6: índice de la carga generada), para que
+    la decisión de inyectar sea la misma en cada corrida."""
+    ruta = getattr(request.scope.get("route"), "path", None) or request.url.path
+    RUTA_ACTUAL.set(f"{request.method} {ruta}")
+    clave = request.headers.get("x-clave-carga")
+    if clave:
+        CLAVE_PETICION.set(clave)
+
+
 def instalar(app) -> None:
+    """Llamar justo después de crear la app (antes de declarar rutas)."""
+    app.router.dependencies.append(Depends(contexto_peticion))
     app.include_router(router)
     app.add_exception_handler(FallaInyectada, manejar_falla_inyectada)
 

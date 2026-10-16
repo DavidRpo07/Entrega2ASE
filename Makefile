@@ -66,7 +66,7 @@ test-lab:
 
 # Entregable 3, fase 1: API (2 réplicas tras nginx), worker del outbox y mock ext-sap.
 # Requiere la base cargada (`make datos`). La API queda en http://localhost:8080
-LAB_SERVICIOS = api-1 api-2 worker ext-sap nginx prometheus grafana jaeger postgres-exporter
+LAB_SERVICIOS = api-1 api-2 worker ext-sap fallas-ext nginx prometheus grafana jaeger postgres-exporter cadvisor
 
 lab-up: db-up
 	@mkdir -p lab/runtime

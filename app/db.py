@@ -17,6 +17,12 @@ CLAVE_PETICION: ContextVar[str | None] = ContextVar("clave_peticion", default=No
 POOL: ConnectionPool | None = None
 
 
+def clave_por_defecto(valor: str) -> None:
+    """Usa `valor` como clave salvo que la petición ya traiga X-Clave-Carga."""
+    if CLAVE_PETICION.get() is None:
+        CLAVE_PETICION.set(valor)
+
+
 def abrir_pool() -> ConnectionPool:
     global POOL
     if POOL is None:
