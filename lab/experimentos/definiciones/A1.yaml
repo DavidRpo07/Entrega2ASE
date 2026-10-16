@@ -1,0 +1,10 @@
+# Experimento A1 — Latencia fija de 800 ms en Catálogo (30 % de las llamadas)
+# La falla parte de la entrada A1 de lab/fallas/catalogo.yaml; `configuracion` la sobrescribe.
+# duracion_s: si no se indica, el runner usa la fase de falla + 30 s (red de seguridad: la falla
+# expira sola aunque el runner muera; el kill switch normal llega al final de la fase).
+id: A1
+familia: latencia
+falla: A1
+descripcion: Latencia fija de 800 ms en Catálogo (30 % de las llamadas)
+configuracion: {probabilidad: 0.30, ms_fijos: 800}
+# fases: {baseline_s: 300, falla_s: 300, recuperacion_s: 120}   # por defecto, de lab/slo.yaml

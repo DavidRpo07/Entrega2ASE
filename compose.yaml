@@ -29,6 +29,7 @@ services:
       POOL_MAX: "5"
       POOL_TIMEOUT_S: "5"
       FAULTS_FILE: /lab-runtime/faults.yaml
+      FAULTS_RECARGA_S: "0.25"
       CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       TRAZAS: ${TRAZAS:-on}          # TRAZAS=off make lab-up → experimento de overhead
@@ -77,6 +78,7 @@ services:
       INSTANCIA: ext-sap
       SAP_LATENCIA_MS: "20"
       FAULTS_FILE: /lab-runtime/faults.yaml
+      FAULTS_RECARGA_S: "0.25"
       CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       TRAZAS: ${TRAZAS:-on}
@@ -101,6 +103,7 @@ services:
       INSTANCIA: fallas-ext
       DB_HOST: postgres
       FAULTS_FILE: /lab-runtime/faults.yaml
+      FAULTS_RECARGA_S: "0.25"
       CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       TRAZAS: ${TRAZAS:-on}

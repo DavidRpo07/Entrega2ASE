@@ -163,3 +163,29 @@ make lab-carga RATE=20 DURACION=2m ETIQUETA=baseline   # k6 → lab/carga/salida
   sus umbrales: `python3 infra/grafana/generar_dashboard.py` (venv activo).
 - **Hallazgo para B2** (no se corrige): el `UPDATE` de Q3 del Entregable 2 incrementa todas las franjas
   disponibles del día, ~32 filas por orden; cada `POST /ordenes` bloquea esas filas.
+
+## Fase 3 — Experimentos
+
+```bash
+# 1. El equipo escribe la predicción y la commitea (Estado: LISTA):  evidencia/predictions/A1.md
+# 2. Corrida (≈ 12 min: baseline 5 + falla 5 + recuperación 2, a 20 req/s):
+make experimento ID=A1
+# Ensayo corto del runner (30 + 30 + 25 s, prefijo PRUEBA-, ignorado por git):
+make experimento-prueba ID=A1      # make limpiar-pruebas para borrarlos
+```
+
+- Definiciones (configuración sobre el catálogo): `lab/experimentos/definiciones/<ID>.yaml`.
+  Protocolo, tasa y SLO: `lab/slo.yaml`. Evidencia: `evidencia/` (ver `evidencia/README.md`).
+- El runner (`lab/experimentos/runner.py`): kill switch → `make lab-reset` → k6 a tasa constante →
+  baseline (desde la primera petición real, según nginx) → `POST /admin/faults` → falla →
+  `DELETE /admin/faults` → recuperación → recolecta k6, Prometheus, logs, trazas y escribe
+  `results/<RUN>/resumen.md` (por fase, SLO, tiempo de recuperación). Las fases se asignan por la
+  hora de inicio de cada petición. La falla lleva `duracion_s` = fase + 30 s: si el runner muere,
+  expira sola (y Ctrl+C dispara el kill switch).
+- Se niega a correr si la predicción falta o sigue en PENDIENTE; guarda su sha256 y el commit.
+- B2 y D1 se activan igual que las demás (los ejecuta `fallas-ext`).
+- Reproducibilidad: `python3 lab/experimentos/comparar_inyecciones.py <RUN1> <RUN2>` compara qué
+  claves afectó la falla en dos corridas (excluye 0,5 s tras activación y kill switch, la ventana
+  en que cada proceso relee `faults.yaml`; `FAULTS_RECARGA_S=0.25`).
+- Overhead de observabilidad: `TRAZAS=off make lab-up` y luego `make experimento …` (el manifest y
+  la métrica `trazas_activas` registran el estado); `make lab-up` lo restaura.

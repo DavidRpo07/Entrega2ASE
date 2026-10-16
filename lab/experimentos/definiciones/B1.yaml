@@ -1,0 +1,10 @@
+# Experimento B1 — Cada consulta retiene la conexión del pool +300 ms (pool max 5 por réplica)
+# La falla parte de la entrada B1 de lab/fallas/catalogo.yaml; `configuracion` la sobrescribe.
+# duracion_s: si no se indica, el runner usa la fase de falla + 30 s (red de seguridad: la falla
+# expira sola aunque el runner muera; el kill switch normal llega al final de la fase).
+id: B1
+familia: base_de_datos
+falla: B1
+descripcion: Cada consulta retiene la conexión del pool +300 ms (pool max 5 por réplica)
+configuracion: {ms_fijos: 300}
+# fases: {baseline_s: 300, falla_s: 300, recuperacion_s: 120}   # por defecto, de lab/slo.yaml

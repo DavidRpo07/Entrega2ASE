@@ -1,0 +1,10 @@
+# Experimento D1 — Caída de api-2: docker stop al min 1 de la falla, start al min 4
+# La falla parte de la entrada D1 de lab/fallas/catalogo.yaml; `configuracion` la sobrescribe.
+# duracion_s: si no se indica, el runner usa la fase de falla + 30 s (red de seguridad: la falla
+# expira sola aunque el runner muera; el kill switch normal llega al final de la fase).
+id: D1
+familia: disponibilidad
+falla: D1
+descripcion: Caída de api-2: docker stop al min 1 de la falla, start al min 4
+configuracion: {parametros: {servicio: api-2, caida_tras_s: 60, caida_s: 180}}
+# fases: {baseline_s: 300, falla_s: 300, recuperacion_s: 120}   # por defecto, de lab/slo.yaml

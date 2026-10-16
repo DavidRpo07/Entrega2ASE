@@ -31,3 +31,6 @@ lab/runtime/
 # Carga generada (reproducible con make lab-carga-datos) y salidas de k6
 lab/carga/datos/
 lab/carga/salida/
+
+# Corridas de prueba del runner (make experimento-prueba)
+evidencia/*/PRUEBA-*/

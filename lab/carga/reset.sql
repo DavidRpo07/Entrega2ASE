@@ -11,7 +11,12 @@ BEGIN;
 CREATE SEQUENCE IF NOT EXISTS ordenes.api_orden_seq START 1000001;
 DELETE FROM ordenes.outbox_evento WHERE aggregate_id >= 1000001;
 DELETE FROM ordenes.linea_orden   WHERE orden_id     >= 1000001;
+-- Sin el índice idx_linea_orden_id (lo crea `make medir`, no `make datos`) la FK revisaría
+-- 2M filas de linea_orden por cada orden borrada (~60 s). Las líneas ya se borraron arriba,
+-- así que se omiten los triggers de FK solo en esta transacción.
+SET LOCAL session_replication_role = replica;
 DELETE FROM ordenes.orden_compra  WHERE orden_id     >= 1000001;
+SET LOCAL session_replication_role = origin;
 ALTER SEQUENCE ordenes.api_orden_seq RESTART WITH 1000001;
 
 CREATE TEMP TABLE franja_csv (LIKE logistica.franja_descargue) ON COMMIT DROP;

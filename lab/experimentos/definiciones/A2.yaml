@@ -1,0 +1,10 @@
+# Experimento A2 — Jitter lognormal en Logística (mediana ~245 ms, cola > 2 s)
+# La falla parte de la entrada A2 de lab/fallas/catalogo.yaml; `configuracion` la sobrescribe.
+# duracion_s: si no se indica, el runner usa la fase de falla + 30 s (red de seguridad: la falla
+# expira sola aunque el runner muera; el kill switch normal llega al final de la fase).
+id: A2
+familia: latencia
+falla: A2
+descripcion: Jitter lognormal en Logística (mediana ~245 ms, cola > 2 s)
+configuracion: {mu: 5.5, sigma: 1.0, max_ms: 10000}
+# fases: {baseline_s: 300, falla_s: 300, recuperacion_s: 120}   # por defecto, de lab/slo.yaml

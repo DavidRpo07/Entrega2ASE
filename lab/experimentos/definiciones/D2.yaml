@@ -1,0 +1,10 @@
+# Experimento D2 — ext-sap tarda 2 s y responde 503 en el 40 % de las llamadas
+# La falla parte de la entrada D2 de lab/fallas/catalogo.yaml; `configuracion` la sobrescribe.
+# duracion_s: si no se indica, el runner usa la fase de falla + 30 s (red de seguridad: la falla
+# expira sola aunque el runner muera; el kill switch normal llega al final de la fase).
+id: D2
+familia: disponibilidad
+falla: D2
+descripcion: ext-sap tarda 2 s y responde 503 en el 40 % de las llamadas
+configuracion: {probabilidad: 0.40, ms_fijos: 2000}
+# fases: {baseline_s: 300, falla_s: 300, recuperacion_s: 120}   # por defecto, de lab/slo.yaml

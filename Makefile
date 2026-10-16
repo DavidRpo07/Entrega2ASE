@@ -1,5 +1,6 @@
 .PHONY: datos db-up db-down db-reset cargar verificar estrategias fase4 modulith medir limpiar-resultados test-lab \
-	lab-up lab-down lab-ps lab-logs lab-smoke lab-carga-datos lab-reset lab-carga
+	lab-up lab-down lab-ps lab-logs lab-smoke lab-carga-datos lab-reset lab-carga \
+	experimento experimento-prueba limpiar-pruebas
 
 # Flujo obligatorio del entregable: genera → carga → verifica.
 datos: db-up
@@ -113,3 +114,19 @@ lab-carga: $(CARGA)
 		-e BASE=http://nginx -e CARGA=/carga/datos/carga_s$(SEMILLA)_n$(N).json \
 		-e RATE=$(RATE) -e DURACION=$(DURACION) -e ETIQUETA=$(ETIQUETA) \
 		--summary-export /carga/salida/$(ETIQUETA)/resumen_k6.json /carga/k6/carga.js
+
+# Fase 3: experimentos. Exige evidencia/predictions/$(ID).md en "Estado: LISTA" (y con commit).
+# Protocolo y SLO en lab/slo.yaml; evidencia en evidencia/{experiments,baseline,metrics,logs,traces,results}/<ID>_<UTC>/
+PY ?= $(if $(wildcard venv/bin/python),venv/bin/python,python3)
+
+experimento:
+	@test -n "$(ID)" || (echo "uso: make experimento ID=A1" && exit 1)
+	@$(PY) lab/experimentos/runner.py --id $(ID)
+
+# Corrida corta de prueba del runner (30 s + 30 s + 25 s, prefijo PRUEBA-, ignorada por git).
+experimento-prueba:
+	@test -n "$(ID)" || (echo "uso: make experimento-prueba ID=A1" && exit 1)
+	@$(PY) lab/experimentos/runner.py --id $(ID) --prueba
+
+limpiar-pruebas:
+	@rm -rf evidencia/*/PRUEBA-*

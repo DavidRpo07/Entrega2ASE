@@ -418,4 +418,7 @@ def punto_de_falla(target: str, inyector: Optional["Inyector"] = None):
     return deco
 
 
-INYECTOR = Inyector(os.environ.get("FAULTS_FILE")) if os.environ.get("FAULTS_FILE") else Inyector()
+# FAULTS_RECARGA_S: cada cuánto se revisa faults.yaml (ventana de propagación de una activación
+# o del kill switch entre procesos).
+INYECTOR = Inyector(os.environ.get("FAULTS_FILE") or None,
+                    intervalo_recarga_s=float(os.environ.get("FAULTS_RECARGA_S", "1.0")))

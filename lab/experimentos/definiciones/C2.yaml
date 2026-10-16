@@ -1,0 +1,10 @@
+# Experimento C2 — Consumidor del outbox pausado
+# La falla parte de la entrada C2 de lab/fallas/catalogo.yaml; `configuracion` la sobrescribe.
+# duracion_s: si no se indica, el runner usa la fase de falla + 30 s (red de seguridad: la falla
+# expira sola aunque el runner muera; el kill switch normal llega al final de la fase).
+id: C2
+familia: degradacion
+falla: C2
+descripcion: Consumidor del outbox pausado
+configuracion: {}
+# fases: {baseline_s: 300, falla_s: 300, recuperacion_s: 120}   # por defecto, de lab/slo.yaml
