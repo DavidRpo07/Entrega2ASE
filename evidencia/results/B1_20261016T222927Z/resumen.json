@@ -1,0 +1,181 @@
+{
+  "run": "B1_20261016T222927Z",
+  "experimento": "B1",
+  "prueba": false,
+  "marcas_utc": {
+    "baseline": "2026-10-16T22:29:31.256+00:00",
+    "falla_on": "2026-10-16T22:34:31.276+00:00",
+    "kill": "2026-10-16T22:39:31.583+00:00",
+    "fin": "2026-10-16T22:41:31.945+00:00"
+  },
+  "por_fase": {
+    "baseline": {
+      "peticiones": 6001,
+      "throughput_rps": 20.0,
+      "post": {
+        "n": 4225,
+        "p50_ms": 5.7,
+        "p95_ms": 13.5,
+        "p99_ms": 27.1,
+        "max_ms": 81.9
+      },
+      "todas": {
+        "p50_ms": 6.3,
+        "p95_ms": 23.5,
+        "p99_ms": 37.7
+      },
+      "por_op": {
+        "crear": {
+          "n": 4225,
+          "p95_ms": 13.5
+        },
+        "listar": {
+          "n": 1192,
+          "p95_ms": 30.8
+        },
+        "precio": {
+          "n": 584,
+          "p95_ms": 7.8
+        }
+      },
+      "codigos": {
+        "200": 1776,
+        "201": 4225
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 6001,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.1,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "falla": {
+      "peticiones": 5821,
+      "throughput_rps": 19.39,
+      "post": {
+        "n": 4077,
+        "p50_ms": 19309.8,
+        "p95_ms": 60002.0,
+        "p99_ms": 60003.8,
+        "max_ms": 60006.7
+      },
+      "todas": {
+        "p50_ms": 19079.7,
+        "p95_ms": 60002.0,
+        "p99_ms": 60003.8
+      },
+      "por_op": {
+        "crear": {
+          "n": 4077,
+          "p95_ms": 60002.0
+        },
+        "listar": {
+          "n": 1181,
+          "p95_ms": 60002.0
+        },
+        "precio": {
+          "n": 563,
+          "p95_ms": 60001.9
+        }
+      },
+      "codigos": {
+        "0": 859,
+        "200": 555,
+        "201": 1190,
+        "502": 1441,
+        "503": 1702,
+        "504": 74
+      },
+      "errores_pct": 70.022,
+      "no_enviadas": 185,
+      "planificadas": 6006,
+      "errores_pct_planificada": 70.946,
+      "peor_ventana_errores_enviadas_pct": 100.0,
+      "peor_ventana_errores_pct": 100.0,
+      "lag_max_s": 2.4,
+      "cumple": {
+        "p95": false,
+        "p99": false,
+        "errores": false,
+        "lag": true
+      }
+    },
+    "recuperacion": {
+      "peticiones": 2394,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 1653,
+        "p50_ms": 5.6,
+        "p95_ms": 17.5,
+        "p99_ms": 39.8,
+        "max_ms": 844.1
+      },
+      "todas": {
+        "p50_ms": 6.1,
+        "p95_ms": 26.0,
+        "p99_ms": 68.5
+      },
+      "por_op": {
+        "crear": {
+          "n": 1653,
+          "p95_ms": 17.5
+        },
+        "listar": {
+          "n": 459,
+          "p95_ms": 36.0
+        },
+        "precio": {
+          "n": 282,
+          "p95_ms": 8.0
+        }
+      },
+      "codigos": {
+        "200": 741,
+        "201": 1653
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 2394,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 3.4,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    }
+  },
+  "recuperacion": {
+    "recuperado": true,
+    "segundos": 1.0,
+    "cliente_s": 1.0,
+    "lag_s": 0.0,
+    "cumple_slo": true
+  },
+  "slo": {
+    "p95_post_ms": 100,
+    "p99_post_ms": 250,
+    "errores_pct": 1.0,
+    "ventana_errores_s": 60,
+    "lag_outbox_s": 10,
+    "recuperacion_s": 20
+  },
+  "inyecciones": 9854,
+  "claves_expuestas_durante_falla": 5821,
+  "no_enviadas_total": 185,
+  "trazas": 35,
+  "enlaces": {
+    "grafana": "http://localhost:3000/d/lab-entregable3?from=1792189741256&to=1792190506945",
+    "jaeger": "http://localhost:16686/search?service=ordenes-api&start=1792190071276733&end=1792190371583147"
+  }
+}
