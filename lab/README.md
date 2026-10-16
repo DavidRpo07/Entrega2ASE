@@ -12,7 +12,30 @@
 
 - `lab/fallas/catalogo.yaml`: las 8 fallas (A1–D2) con sus parámetros.
 - `lab/faults.yaml`: fallas activas (vacío por defecto).
-- Tests: `make test-lab`.
+- Tests: `make test-lab` (ver "Entorno de Python" abajo).
+
+## Puesta en marcha (clon limpio)
+
+```bash
+python3 -m venv venv && . venv/bin/activate      # una vez
+pip install -r requirements.txt                  # psycopg2 + pyyaml (scripts del host)
+make datos        # postgres (compose, volumen pgdata) + datos con semilla 42
+make lab-up       # laboratorio completo
+make lab-smoke    # verificación end-to-end
+```
+
+**Entorno de Python.** Los scripts del host (`make datos`, `make test-lab`, `make lab-smoke`,
+generador de carga) usan `python3`. Active el venv antes de `make` (`. venv/bin/activate`) o
+instale `requirements.txt` en el Python que use: sin `pyyaml`, `make test-lab` falla con
+`ModuleNotFoundError: No module named 'yaml'`. La API, el worker y ext-sap no dependen del venv:
+corren en la imagen Docker (`app/requirements.txt`).
+
+**Después de `make datos` reinicie el laboratorio** (`make lab-down lab-up`): `make datos`
+recrea los esquemas y borra la secuencia `ordenes.api_orden_seq` y el índice del outbox, que la
+API crea al arrancar. Sin reinicio, `POST /ordenes` responde 500.
+
+**Postgres viejo.** Si `postgres-escalables` se creó con `docker run` (antes del Entregable 3),
+`make db-up` se detiene y explica cómo renombrarlo; luego `make datos` crea el de compose.
 
 ## Uso en el modulith
 
@@ -59,12 +82,13 @@ curl -X DELETE localhost:8080/admin/faults # kill switch
 
 Notas:
 - Las órdenes de la API usan la secuencia `ordenes.api_orden_seq` (desde 1.000.001); la API la
-  crea al arrancar junto con un índice parcial del outbox. Tras `make datos` (que recrea los
-  esquemas) hay que reiniciar el lab (`make lab-down lab-up`).
-- `postgres-escalables` puede existir fuera de compose; `make lab-up` lo conecta a la red
-  `escalables-lab` con el alias `postgres`.
-- Un proceso que arranca con una falla listada en `faults.yaml` la activa con su duración
-  completa (p. ej. api-2 al volver en D1).
+  crea al arrancar junto con un índice parcial del outbox (por eso hay que reiniciar el lab tras
+  `make datos`).
+- `POST /admin/faults` guarda `inicio_utc` (hora absoluta de activación) en `faults.yaml`: un
+  proceso que arranca después (p. ej. api-2 al volver en D1) aplica solo la duración restante, y
+  nada si ya expiró. Las fallas expiradas se podan del archivo en la siguiente escritura.
+- nginx escribe su access log en JSON (`status`, `upstream`, `upstream_status`,
+  `upstream_response_time`, `instancia`, `trace_id`): evidencia de 502 cuando cae una réplica.
 - Sin correcciones todavía: el worker no reintenta con backoff ni tiene circuit breaker (fase 4).
 
 ## Fase 2 — Observabilidad
@@ -98,3 +122,19 @@ Toda respuesta trae `X-Trace-Id`.
 
 Logs: una línea JSON por evento con `ts`, `nivel`, `logger`, `instancia`, `msg`, `trace_id`,
 `span_id` (y `ruta`, `codigo`, `duracion_ms` en el access log): `make lab-logs`.
+
+## Carga reproducible
+
+```bash
+make lab-carga-datos SEMILLA=42 N=30000   # genera lab/carga/datos/carga_s42_n30000.json (+ .meta.json con sha256)
+make lab-reset                            # borra órdenes de la API, reinicia la secuencia, restaura franjas
+make lab-carga RATE=20 DURACION=2m ETIQUETA=baseline   # k6 → lab/carga/salida/baseline/resumen_k6.json
+```
+
+- `lab/carga/generar_carga.py` solo lee los CSV del Entregable 2 (no usa su generador): proveedores
+  ACTIVOS con contrato VIGENTE en la fecha de creación, (CEDI, fecha) con franjas DISPONIBLES sin
+  pasarse de su cupo, y fechas explícitas (independientes del día en que se corra). Mezcla por
+  defecto: 70 % `POST /ordenes`, 20 % Q5, 10 % Q2.
+- k6 recorre la secuencia en orden a tasa constante (`constant-arrival-rate`), así que misma
+  semilla + `make lab-reset` → mismas peticiones y mismos `orden_id`.
+- El cupo depende del estado inicial de las franjas: corra `make lab-reset` antes de cada corrida.

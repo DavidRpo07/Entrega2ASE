@@ -176,6 +176,20 @@ def main():
     c, _, _, _ = http("POST", "/admin/faults", {"id": "X1", "tipo": "latencia_fija", "target": "x", "probabilidad": 2})
     check(c == 422, f"falla inválida -> 422 ({c})")
 
+    print("\n[10] Duración absoluta: un contenedor que reinicia aplica solo lo que queda")
+    t0 = time.time()
+    activar({"id": "A1", "probabilidad": 1.0, "duracion_s": 15})
+    time.sleep(6)
+    subprocess.run(["docker", "compose", "restart", "api-2"], capture_output=True, check=True)
+    subprocess.run(["docker", "compose", "up", "-d", "--wait", "api-2"], capture_output=True, check=True)
+    espera = 15 - (time.time() - t0) + 1.5
+    if espera > 0:
+        time.sleep(espera)
+    vistas = activa_en_ambas("A1")
+    check(vistas == {"api-1": False, "api-2": False},
+          f"A1 (15 s) expiró también en api-2 reiniciada a los 6 s: {vistas} a los {time.time() - t0:.0f} s")
+    kill_switch()
+
     observabilidad(provs)
 
     print("\nRESULTADO:", "OK" if not fallos else f"{len(fallos)} fallo(s)")
@@ -195,7 +209,7 @@ def prom(expr):
 
 
 def observabilidad(provs):
-    print("\n[10] Observabilidad (fase 2)")
+    print("\n[11] Observabilidad (fase 2)")
     objetivos = get_json(PROMETHEUS + "/api/v1/targets")["data"]["activeTargets"]
     caidos = [t["labels"]["job"] for t in objetivos if t["health"] != "up"]
     check(len(objetivos) >= 6 and not caidos, f"Prometheus raspa {len(objetivos)} targets, caídos: {caidos}")

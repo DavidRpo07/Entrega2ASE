@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-from lab.fallas.inyector import (ConfiguracionInvalida, FallaInyectada,
+from lab.fallas.inyector import (ConfiguracionInvalida, FallaInyectada, iso_de_epoch,
                                  Inyector, punto_de_falla)
 
 CATALOGO = Path(__file__).resolve().parents[1] / "fallas" / "catalogo.yaml"
@@ -171,6 +171,50 @@ class TestSinRedespliegue(unittest.TestCase):
             ruta.write_text(yaml.safe_dump({"kill_switch": True, "fallas": [falla()]}))
             os.utime(ruta, (time.time() + 2, time.time() + 2))
             self.assertEqual(iny.punto("catalogo.validar_sku"), 0)
+
+    def _inyector_con_archivo(self, d, fallas, pared):
+        ruta = Path(d) / "faults.yaml"
+        ruta.write_text(yaml.safe_dump({"fallas": fallas}))
+        r = Reloj()
+        iny = Inyector(ruta_config=ruta, reloj=r, dormir=r.dormir, intervalo_recarga_s=0,
+                       instancia="api-2", reloj_pared=lambda: pared + r.t)
+        return iny, r, ruta
+
+    def test_inicio_utc_aplica_solo_la_duracion_restante(self):
+        # Un contenedor que arranca 100 s después de la activación (p. ej. api-2 en D1)
+        # aplica los 200 s que quedan, no los 300 s completos.
+        ahora = 1_800_000_000.0
+        with tempfile.TemporaryDirectory() as d:
+            iny, r, _ = self._inyector_con_archivo(
+                d, [falla(duracion_s=300, inicio_utc=iso_de_epoch(ahora - 100))], ahora)
+            self.assertEqual(iny.punto("catalogo.validar_sku"), 800)
+            r.t += 199
+            self.assertEqual(len(iny.activas()), 1)
+            r.t += 1
+            self.assertEqual(iny.activas(), [])
+
+    def test_inicio_utc_expirado_no_se_activa_ni_resucita(self):
+        ahora = 1_800_000_000.0
+        with tempfile.TemporaryDirectory() as d:
+            vieja = falla(duracion_s=300, inicio_utc=iso_de_epoch(ahora - 400))
+            iny, _, ruta = self._inyector_con_archivo(d, [vieja], ahora)
+            self.assertEqual(iny.activas(), [])
+            self.assertEqual(iny.punto("catalogo.validar_sku"), 0)
+            # Otra falla se agrega al archivo: la expirada sigue listada pero no vuelve.
+            ruta.write_text(yaml.safe_dump({"fallas": [vieja, falla(id="A2x", target="otro", inicio_utc=iso_de_epoch(ahora))]}))
+            os.utime(ruta, (time.time() + 1, time.time() + 1))
+            self.assertEqual([f.id for f in iny.activas()], ["A2x"])
+
+    def test_sin_inicio_utc_usa_la_duracion_completa(self):
+        with tempfile.TemporaryDirectory() as d:
+            iny, r, _ = self._inyector_con_archivo(d, [falla(duracion_s=300)], 1_800_000_000.0)
+            r.t += 299
+            self.assertEqual(len(iny.activas()), 1)
+
+    def test_inicio_utc_invalido_se_rechaza(self):
+        iny, _ = nuevo()
+        with self.assertRaises(ConfiguracionInvalida):
+            iny.activar(falla(inicio_utc="ayer"))
 
     def test_archivo_del_repo_es_valido(self):
         iny, _ = nuevo(ruta_config=CATALOGO.parent.parent / "faults.yaml")

@@ -9,6 +9,7 @@ recibe la petición además recarga en el acto.
 import fcntl
 import os
 import tempfile
+import time
 from pathlib import Path
 
 import yaml
@@ -16,7 +17,8 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app import config
-from lab.fallas.inyector import INYECTOR, ConfiguracionInvalida, FallaInyectada, falla_desde_dict
+from lab.fallas.inyector import (INYECTOR, ConfiguracionInvalida, FallaInyectada, epoch_de_iso,
+                                 falla_desde_dict, iso_de_epoch)
 
 router = APIRouter(prefix="/admin/faults", tags=["admin"])
 
@@ -41,13 +43,25 @@ def _leer(ruta: Path) -> dict:
     return datos
 
 
+def _vigente(f: dict, ahora: float) -> bool:
+    if f.get("inicio_utc") is None or f.get("duracion_s") is None:
+        return True
+    try:
+        return epoch_de_iso(f["inicio_utc"]) + float(f["duracion_s"]) > ahora
+    except (TypeError, ValueError):
+        return True   # que la valide el inyector
+
+
 def _modificar(cambio) -> dict:
     """Lee-modifica-escribe faults.yaml bajo un lock de archivo y con reemplazo
     atómico (os.replace), para que ningún lector vea un YAML a medias."""
     ruta = _ruta()
     with open(ruta.with_suffix(".lock"), "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        datos = cambio(_leer(ruta))
+        datos = _leer(ruta)
+        ahora = time.time()
+        datos["fallas"] = [f for f in datos["fallas"] if _vigente(f, ahora)]  # poda las expiradas
+        datos = cambio(datos)
         fd, tmp = tempfile.mkstemp(dir=ruta.parent, prefix=".faults-", suffix=".yaml")
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write("# Escrito por /admin/faults. Ver lab/faults.yaml para el formato.\n")
@@ -70,7 +84,9 @@ def activar(falla: dict = Body(..., examples=[{"id": "A1"}, {"id": "A1", "probab
     if "id" not in falla:
         raise HTTPException(422, "falta 'id'")
     base = _catalogo().get(falla["id"], {})
-    final = {**base, **falla}
+    # inicio_utc: hora absoluta, para que un proceso que arranque después aplique
+    # solo la duración restante (y nada si ya expiró).
+    final = {**base, **falla, "inicio_utc": iso_de_epoch(time.time())}
     try:
         falla_desde_dict(dict(final))  # valida antes de escribir
     except (ConfiguracionInvalida, TypeError) as e:

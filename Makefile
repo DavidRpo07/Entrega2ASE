@@ -1,5 +1,5 @@
 .PHONY: datos db-up db-down db-reset cargar verificar estrategias fase4 modulith medir limpiar-resultados test-lab \
-	lab-up lab-down lab-ps lab-logs lab-smoke
+	lab-up lab-down lab-ps lab-logs lab-smoke lab-carga-datos lab-reset lab-carga
 
 # Flujo obligatorio del entregable: genera → carga → verifica.
 datos: db-up
@@ -7,13 +7,17 @@ datos: db-up
 	@./datos/cargar_datos.sh
 	@python3 datos/verificar_datos.py
 
+# Postgres lo gestiona compose (volumen pgdata). Si existe un postgres-escalables
+# creado a mano con `docker run` (fuera de compose), se pide migrarlo.
 db-up:
-	@if docker container inspect postgres-escalables >/dev/null 2>&1; then \
-		docker start postgres-escalables >/dev/null 2>&1 || true; \
-	else \
-		docker compose up -d postgres; \
+	@if docker container inspect postgres-escalables >/dev/null 2>&1 && \
+		[ -z "$$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' postgres-escalables)" ]; then \
+		echo "postgres-escalables existe pero no lo creó compose. Renómbrelo y recargue los datos:"; \
+		echo "  docker stop postgres-escalables && docker rename postgres-escalables postgres-escalables-viejo"; \
+		echo "  make datos"; \
+		exit 1; \
 	fi
-	@until docker exec postgres-escalables pg_isready -U postgres -d escalables >/dev/null 2>&1; do sleep 1; done
+	@docker compose up -d --wait postgres
 
 db-down:
 	@docker compose down
@@ -63,21 +67,17 @@ test-lab:
 # Entregable 3, fase 1: API (2 réplicas tras nginx), worker del outbox y mock ext-sap.
 # Requiere la base cargada (`make datos`). La API queda en http://localhost:8080
 LAB_SERVICIOS = api-1 api-2 worker ext-sap nginx prometheus grafana jaeger postgres-exporter
-LAB_RED = escalables-lab
 
 lab-up: db-up
 	@mkdir -p lab/runtime
 	@[ -f lab/runtime/faults.yaml ] || cp lab/faults.yaml lab/runtime/faults.yaml
 	@docker compose build api-1
-	@docker compose up --no-start --no-deps $(LAB_SERVICIOS)
-	@# postgres-escalables puede venir de `docker run` (fuera de compose): se une a la red del lab.
-	@docker network connect --alias postgres $(LAB_RED) postgres-escalables 2>/dev/null || true
-	@docker compose up -d --no-deps --wait $(LAB_SERVICIOS)
+	@docker compose up -d --wait $(LAB_SERVICIOS)
 	@echo "Laboratorio arriba: API http://localhost:8080/docs | Grafana http://localhost:3000 | Prometheus http://localhost:9090 | Jaeger http://localhost:16686"
 
+# Detiene el laboratorio; postgres sigue arriba (lo usan los comandos del Entregable 2).
 lab-down:
 	@docker compose rm -sf $(LAB_SERVICIOS)
-	@docker network disconnect $(LAB_RED) postgres-escalables 2>/dev/null || true
 
 lab-ps:
 	@docker compose ps $(LAB_SERVICIOS)
@@ -87,3 +87,29 @@ lab-logs:
 
 lab-smoke:
 	@python3 lab/smoke.py
+
+# Carga del laboratorio: secuencia válida con semilla fija (lab/carga/generar_carga.py),
+# reset del estado de la base y ejecución con k6 (contenedor en la red del lab).
+SEMILLA ?= 42
+N ?= 30000
+RATE ?= 20
+DURACION ?= 2m
+ETIQUETA ?= manual
+CARGA = lab/carga/datos/carga_s$(SEMILLA)_n$(N).json
+K6_IMAGEN = grafana/k6:0.55.0
+
+$(CARGA):
+	@python3 lab/carga/generar_carga.py --semilla $(SEMILLA) --n $(N)
+
+lab-carga-datos: $(CARGA)
+
+lab-reset:
+	@docker cp datos/csv/franja_descargue.csv postgres-escalables:/tmp/franja_descargue.csv
+	@docker exec -i postgres-escalables psql -q -U postgres -d escalables < lab/carga/reset.sql
+
+lab-carga: $(CARGA)
+	@mkdir -p lab/carga/salida/$(ETIQUETA)
+	@docker run --rm --network escalables-lab -v "$(CURDIR)/lab/carga:/carga" $(K6_IMAGEN) run --quiet \
+		-e BASE=http://nginx -e CARGA=/carga/datos/carga_s$(SEMILLA)_n$(N).json \
+		-e RATE=$(RATE) -e DURACION=$(DURACION) -e ETIQUETA=$(ETIQUETA) \
+		--summary-export /carga/salida/$(ETIQUETA)/resumen_k6.json /carga/k6/carga.js

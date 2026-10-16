@@ -29,6 +29,7 @@ import random
 import threading
 import time
 from dataclasses import dataclass, field, asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -74,6 +75,10 @@ class Falla:
     probabilidad: float = 1.0         # 0..1, por llamada
     porcentaje_trafico: float = 100.0  # 0..100, se decide por clave de petición
     duracion_s: Optional[float] = None  # None = hasta kill switch
+    # Hora absoluta de activación (ISO 8601). La escribe POST /admin/faults en
+    # faults.yaml: un proceso que arranca o recarga después aplica solo la
+    # duración restante, y nada si ya expiró.
+    inicio_utc: Optional[str] = None
     semilla: int = 42
     # parámetros de intensidad (según tipo)
     ms_fijos: float = 0.0
@@ -102,10 +107,26 @@ class Falla:
             raise ConfiguracionInvalida(f"{self.id}: codigo_http debe ser 4xx o 5xx")
         if not 0.0 < self.carga_cpu <= 1.0:
             raise ConfiguracionInvalida(f"{self.id}: carga_cpu debe estar en (0, 1]")
+        if self.inicio_utc is not None:
+            try:
+                epoch_de_iso(self.inicio_utc)
+            except (TypeError, ValueError):
+                raise ConfiguracionInvalida(f"{self.id}: inicio_utc debe ser ISO 8601 ('{self.inicio_utc}')")
 
     def publica(self) -> dict:
         d = {k: v for k, v in asdict(self).items() if not k.startswith("_")}
         return d
+
+
+def epoch_de_iso(texto: str) -> float:
+    dt = datetime.fromisoformat(str(texto))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.timestamp()
+
+
+def iso_de_epoch(epoch: float) -> str:
+    return datetime.fromtimestamp(epoch, timezone.utc).isoformat(timespec="milliseconds")
 
 
 _CAMPOS = {f for f in Falla.__dataclass_fields__ if not f.startswith("_") and f != "activada_en"}
@@ -130,11 +151,13 @@ class Inyector:
                  reloj: Callable[[], float] = time.monotonic,
                  dormir: Callable[[float], None] = time.sleep,
                  intervalo_recarga_s: float = 1.0,
-                 instancia: Optional[str] = None):
+                 instancia: Optional[str] = None,
+                 reloj_pared: Callable[[], float] = time.time):
         self.instancia = instancia or os.environ.get("INSTANCIA", "local")
         self._lock = threading.RLock()
         self._fallas: dict[str, Falla] = {}
         self._reloj = reloj
+        self._reloj_pared = reloj_pared   # solo para inicio_utc (hora absoluta)
         self._dormir = dormir
         self._ruta = Path(ruta_config) if ruta_config else None
         self._mtime: Optional[float] = None
@@ -205,10 +228,17 @@ class Inyector:
         log.warning("KILL SWITCH (%s): desactivadas %s", motivo, ids)
         return ids
 
-    def _activar(self, f: Falla) -> None:
+    def _activar(self, f: Falla) -> bool:
         if f.id in self._fallas:
             self._desactivar(f.id)
-        f.activada_en = self._reloj()
+        transcurrido = 0.0
+        if f.inicio_utc is not None:
+            transcurrido = max(0.0, self._reloj_pared() - epoch_de_iso(f.inicio_utc))
+            if f.duracion_s is not None and transcurrido >= f.duracion_s:
+                log.info("falla %s ya expiró (inicio_utc=%s, duracion_s=%s): no se activa",
+                         f.id, f.inicio_utc, f.duracion_s)
+                return False
+        f.activada_en = self._reloj() - transcurrido
         f._rng = random.Random(f"{f.semilla}:{f.id}")
         self._fallas[f.id] = f
         self.contadores.setdefault(f.id, 0)
@@ -217,6 +247,7 @@ class Inyector:
         log.warning("falla activada %s tipo=%s target=%s", f.id, f.tipo, f.target)
         for obs in self.observadores:
             obs("activada", f)
+        return True
 
     def _desactivar(self, fid: str) -> bool:
         f = self._fallas.pop(fid, None)
@@ -328,7 +359,8 @@ class Inyector:
             h.start()
         if f.duracion_s is not None:
             # garantiza que la CPU se libere aunque nadie consulte activas()
-            t = threading.Timer(f.duracion_s, lambda: self.activas())
+            restante = max(0.0, f.duracion_s - (self._reloj() - f.activada_en))
+            t = threading.Timer(restante, lambda: self.activas())
             t.daemon = True
             t.start()
 

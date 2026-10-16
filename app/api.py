@@ -127,11 +127,13 @@ def otif_de_proveedor(proveedor_id: int):
 
 
 @app.get("/catalogo/precio")
-def precio(proveedor_id: int, sku_id: int):
-    """Q2 del Entregable 2 a través del módulo de catálogo (punto catalogo.validar_sku)."""
+def precio(proveedor_id: int, sku_id: int, fecha: datetime | None = None):
+    """Q2 del Entregable 2 a través del módulo de catálogo (punto catalogo.validar_sku).
+    `fecha` explícita (por defecto ahora) hace la carga independiente del reloj."""
     db.CLAVE_PETICION.set(f"{proveedor_id}:{sku_id}")
     with db.transaccion() as cur:
-        valor = CatalogoConFallas(cur).validar_sku_y_obtener_precio(proveedor_id, sku_id, _ahora().isoformat())
+        valor = CatalogoConFallas(cur).validar_sku_y_obtener_precio(
+            proveedor_id, sku_id, (fecha or _ahora()).isoformat())
     return {"proveedor_id": proveedor_id, "sku_id": sku_id, "precio": valor}
 
 

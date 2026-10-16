@@ -8,6 +8,8 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data   # con nombre: sobrevive a `docker compose down`
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d escalables"]
       interval: 2s
@@ -15,12 +17,12 @@ services:
       retries: 30
 
   # ---------------- Entregable 3: laboratorio de fallas ----------------
-  # Se levanta con `make lab-up`. No declaran depends_on: postgres porque
-  # postgres-escalables puede existir fuera de compose (Entregable 2);
-  # `make lab-up` lo conecta a esta red con el alias "postgres".
+  # Se levanta con `make lab-up` (requiere `make datos` antes).
   api-1: &api
     build: { context: ., dockerfile: app/Dockerfile }
     image: escalables-lab:latest
+    depends_on:
+      postgres: { condition: service_healthy }
     environment: &api-env
       INSTANCIA: api-1
       DB_HOST: postgres
@@ -48,6 +50,7 @@ services:
     image: escalables-lab:latest
     command: ["python", "-m", "app.worker"]
     depends_on:
+      postgres: { condition: service_healthy }
       api-1: { condition: service_started }   # misma imagen: espera a que se construya
     environment:
       <<: *api-env
@@ -145,6 +148,8 @@ services:
 
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.16.0
+    depends_on:
+      postgres: { condition: service_healthy }
     environment:
       DATA_SOURCE_NAME: postgresql://postgres:postgres@postgres:5432/escalables?sslmode=disable
     healthcheck:
@@ -154,6 +159,7 @@ services:
       retries: 12
 
 volumes:
+  pgdata:
   prometheus-datos:
 
 networks:
