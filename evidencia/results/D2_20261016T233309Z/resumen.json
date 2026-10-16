@@ -1,0 +1,175 @@
+{
+  "run": "D2_20261016T233309Z",
+  "experimento": "D2",
+  "prueba": false,
+  "marcas_utc": {
+    "baseline": "2026-10-16T23:33:13.910+00:00",
+    "falla_on": "2026-10-16T23:38:13.939+00:00",
+    "kill": "2026-10-16T23:43:14.241+00:00",
+    "fin": "2026-10-16T23:45:15.089+00:00"
+  },
+  "por_fase": {
+    "baseline": {
+      "peticiones": 6002,
+      "throughput_rps": 20.0,
+      "post": {
+        "n": 4225,
+        "p50_ms": 5.8,
+        "p95_ms": 19.0,
+        "p99_ms": 35.6,
+        "max_ms": 186.5
+      },
+      "todas": {
+        "p50_ms": 6.4,
+        "p95_ms": 25.6,
+        "p99_ms": 55.2
+      },
+      "por_op": {
+        "crear": {
+          "n": 4225,
+          "p95_ms": 19.0
+        },
+        "listar": {
+          "n": 1192,
+          "p95_ms": 44.0
+        },
+        "precio": {
+          "n": 585,
+          "p95_ms": 10.7
+        }
+      },
+      "codigos": {
+        "200": 1777,
+        "201": 4225
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 6002,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.4,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "falla": {
+      "peticiones": 6006,
+      "throughput_rps": 20.0,
+      "post": {
+        "n": 4197,
+        "p50_ms": 6.2,
+        "p95_ms": 19.8,
+        "p99_ms": 44.5,
+        "max_ms": 198.3
+      },
+      "todas": {
+        "p50_ms": 7.0,
+        "p95_ms": 28.6,
+        "p99_ms": 68.3
+      },
+      "por_op": {
+        "crear": {
+          "n": 4197,
+          "p95_ms": 19.8
+        },
+        "listar": {
+          "n": 1221,
+          "p95_ms": 53.2
+        },
+        "precio": {
+          "n": 588,
+          "p95_ms": 12.0
+        }
+      },
+      "codigos": {
+        "200": 1809,
+        "201": 4197
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 6006,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 296.5,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": false
+      }
+    },
+    "recuperacion": {
+      "peticiones": 2393,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 1664,
+        "p50_ms": 5.3,
+        "p95_ms": 18.7,
+        "p99_ms": 44.6,
+        "max_ms": 178.9
+      },
+      "todas": {
+        "p50_ms": 5.9,
+        "p95_ms": 28.2,
+        "p99_ms": 69.2
+      },
+      "por_op": {
+        "crear": {
+          "n": 1664,
+          "p95_ms": 18.7
+        },
+        "listar": {
+          "n": 454,
+          "p95_ms": 57.6
+        },
+        "precio": {
+          "n": 275,
+          "p95_ms": 13.0
+        }
+      },
+      "codigos": {
+        "200": 729,
+        "201": 1664
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 2393,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 300.5,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": false
+      }
+    }
+  },
+  "recuperacion": {
+    "recuperado": false,
+    "cliente_s": 0.0,
+    "lag_s": null
+  },
+  "slo": {
+    "p95_post_ms": 100,
+    "p99_post_ms": 250,
+    "errores_pct": 1.0,
+    "ventana_errores_s": 60,
+    "lag_outbox_s": 10,
+    "recuperacion_s": 20
+  },
+  "inyecciones": 119,
+  "claves_expuestas_durante_falla": 6006,
+  "no_enviadas_total": 0,
+  "trazas": 11,
+  "enlaces": {
+    "grafana": "http://localhost:3000/d/lab-entregable3?from=1792193563910&to=1792194330089",
+    "jaeger": "http://localhost:16686/search?service=ordenes-api&start=1792193893939250&end=1792194194241507"
+  }
+}
