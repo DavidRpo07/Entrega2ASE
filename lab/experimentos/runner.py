@@ -100,6 +100,53 @@ def http(metodo, url, cuerpo=None, timeout=15):
         return e.code, e.read().decode(errors="replace")
 
 
+# Escritura atómica de faults.yaml, ejecutada DENTRO del contenedor fallas-ext (comparte
+# /lab-runtime con las APIs). Desde el host no sirve: con Docker Desktop el montaje no propaga
+# el os.replace de forma atómica y una API llegó a leer el archivo a medias.
+_KILL_PY = r"""
+import fcntl, os, tempfile, time, yaml
+ruta = os.environ["FAULTS_FILE"]
+with open(ruta[:-5] + ".lock", "w") as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(ruta), prefix=".faults-", suffix=".yaml")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write("# Escrito por el runner (kill switch directo). Ver lab/faults.yaml para el formato.\n")
+        yaml.safe_dump({"kill_switch": True, "fallas": []}, f, sort_keys=False)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, ruta)
+    print(repr(time.time()))
+"""
+
+
+def kill_switch_archivo() -> float:
+    """Kill switch escrito directo en faults.yaml (mismo formato, lock y reemplazo atómico que
+    /admin/faults) sin pasar por la API: en B1 el DELETE por HTTP esperó 82 s en la fila de la
+    API saturada. Cada proceso lo aplica en su próxima recarga (FAULTS_RECARGA_S = 0,25 s).
+    Devuelve la hora de la escritura (reloj del contenedor = reloj del host en Docker Desktop)."""
+    r = sh("docker", "compose", "exec", "-T", "fallas-ext", "python", "-c", _KILL_PY)
+    if r.returncode != 0:
+        raise RuntimeError(f"kill switch por archivo falló: {r.stderr.strip()[-300:]}")
+    return float(r.stdout.strip().splitlines()[-1])
+
+
+def kill_switch(timeline, evento="kill_switch") -> float:
+    """Kill switch: archivo primero (inmediato) y DELETE /admin/faults en segundo plano (apaga
+    también el estado local de la réplica que lo atienda); su demora queda en el timeline."""
+    t = kill_switch_archivo()
+    timeline(evento, via="archivo")
+
+    def por_http():
+        t0 = ahora()
+        try:
+            c, _ = http("DELETE", f"{API}/admin/faults", timeout=120)
+        except Exception as e:  # noqa: BLE001
+            c = f"{type(e).__name__}: {e}"
+        timeline(f"{evento}_http", codigo=c, demora_s=round(ahora() - t0, 2))
+
+    threading.Thread(target=por_http, daemon=True).start()
+    return t
+
+
 def prom_instant(expr):
     q = urllib.parse.urlencode({"query": expr})
     _, r = http("GET", f"{PROM}/api/v1/query?{q}")
@@ -220,7 +267,7 @@ def correr_k6(run: str, duracion_s: int, slo: dict, dir_metrics: Path) -> subpro
            "-v", f"{RAIZ / 'lab/carga'}:/carga:ro", "-v", f"{dir_metrics}:/salida",
            K6_IMAGEN, "run", "--quiet",
            "-e", "BASE=http://nginx", "-e", f"CARGA=/carga/datos/{datos}",
-           "-e", f"RATE={carga['tasa_rps']}", "-e", f"DURACION={duracion_s}s", "-e", f"ETIQUETA={run}",
+           "-e", f"RATE={carga['tasa_rps']}", "-e", f"VUS={carga.get('vus_max', 1000)}", "-e", f"VUS_MAX={carga.get('vus_max', 1000)}", "-e", f"DURACION={duracion_s}s", "-e", f"ETIQUETA={run}",
            "--summary-export", "/salida/k6_resumen.json", "--out", "csv=/salida/k6_crudo.csv.gz",
            "/carga/k6/carga.js"]
     return subprocess.Popen(cmd, cwd=RAIZ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -251,12 +298,17 @@ def monitor(timeline, parar: threading.Event, fase: dict):
 
 
 # ---------------------------------------------------------------- evidencia
-def compactar_k6(dir_metrics: Path) -> list[dict]:
-    """k6 escribe ~20 filas por petición; se deja una por petición (http_req_duration)."""
+def compactar_k6(dir_metrics: Path) -> tuple[list[dict], list[float]]:
+    """k6 escribe ~20 filas por petición; se deja una por petición (http_req_duration).
+    También devuelve las iteraciones que k6 no alcanzó a enviar (dropped_iterations: sin VUs
+    libres): son carga planificada que el sistema no recibió y se cuentan como error del cliente."""
     crudo = dir_metrics / "k6_crudo.csv.gz"
-    filas = []
+    filas, no_enviadas = [], []
     with gzip.open(crudo, "rt", encoding="utf-8", newline="") as f:
         for r in csv.DictReader(f):
+            if r["metric_name"] == "dropped_iterations":
+                no_enviadas += [int(r["timestamp"]) / 1000.0] * int(float(r["metric_value"] or 1))
+                continue
             if r["metric_name"] != "http_req_duration":
                 continue
             extra = dict(urllib.parse.parse_qsl(r.get("extra_tags") or ""))
@@ -270,8 +322,11 @@ def compactar_k6(dir_metrics: Path) -> list[dict]:
         w = csv.DictWriter(f, fieldnames=["ts", "op", "clave", "status", "ms"])
         w.writeheader()
         w.writerows(filas)
+    no_enviadas.sort()
+    with gzip.open(dir_metrics / "no_enviadas.csv.gz", "wt", encoding="utf-8", newline="") as f:
+        f.write("ts\n" + "".join(f"{t:.3f}\n" for t in no_enviadas))
     crudo.unlink()
-    return filas
+    return filas, no_enviadas
 
 
 def es_error(status: int) -> bool:
@@ -300,18 +355,31 @@ def stats(filas: list[dict]) -> dict:
     }
 
 
-def peor_ventana_errores(filas, ini, fin, ventana):
+def con_no_enviadas(s: dict, sub_no_env: list[float]) -> dict:
+    """Agrega a stats() la carga no enviada y el % de errores sobre la carga planificada."""
+    n_err = round(s.get("errores_pct", 0) * s.get("peticiones", 0) / 100)
+    plan = s.get("peticiones", 0) + len(sub_no_env)
+    s["no_enviadas"] = len(sub_no_env)
+    s["planificadas"] = plan
+    s["errores_pct_planificada"] = round(100 * (n_err + len(sub_no_env)) / plan, 3) if plan else 0.0
+    return s
+
+
+def peor_ventana_errores(filas, ini, fin, ventana, no_enviadas=()):
+    """Peor % de errores por ventana; con no_enviadas, sobre la carga planificada."""
     peor = 0.0
     t = ini
     while t < fin:
-        v = [x for x in filas if t <= x["ts"] < min(t + ventana, fin)]
-        if v:
-            peor = max(peor, 100 * sum(es_error(x["status"]) for x in v) / len(v))
+        u = min(t + ventana, fin)
+        v = [x for x in filas if t <= x["ts"] < u]
+        d = sum(1 for x in no_enviadas if t <= x < u)
+        if v or d:
+            peor = max(peor, 100 * (sum(es_error(x["status"]) for x in v) + d) / (len(v) + d))
         t += ventana
     return round(peor, 3)
 
 
-def recuperacion(filas, t_kill, t_fin, slo, lag_serie):
+def recuperacion(filas, t_kill, t_fin, slo, lag_serie, no_enviadas=()):
     """Primer instante tras el kill switch desde el que, durante 20 s seguidos, cada
     bloque de 5 s cumple p95 POST ≤ SLO y errores < SLO (cliente), y el lag < SLO."""
     bloque, sostener = 5.0, 20.0
@@ -320,8 +388,9 @@ def recuperacion(filas, t_kill, t_fin, slo, lag_serie):
         u = t
         while u < t + sostener:
             v = [x for x in filas if u <= x["ts"] < u + bloque]
+            d = sum(1 for x in no_enviadas if u <= x < u + bloque)
             post = [x["ms"] for x in v if x["op"] == "crear"]
-            if v and (100 * sum(es_error(x["status"]) for x in v) / len(v) >= slo["errores_pct"]):
+            if (v or d) and (100 * (sum(es_error(x["status"]) for x in v) + d) / (len(v) + d) >= slo["errores_pct"]):
                 return False
             if post and percentil(post, 95) > slo["p95_post_ms"]:
                 return False
@@ -432,9 +501,10 @@ def guardar_trazas(dir_traces: Path, marcas: dict, slo: dict) -> list[dict]:
 def resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, enlaces) -> str:
     def fila(nombre, s):
         if not s.get("peticiones"):
-            return f"| {nombre} | 0 | | | | | | |"
-        return (f"| {nombre} | {s['peticiones']} | {s['throughput_rps']} | {s['post']['p50_ms']} | {s['post']['p95_ms']} | "
-                f"{s['post']['p99_ms']} | {s['errores_pct']} | {s['peor_ventana_errores_pct']} | {s.get('lag_max_s', '')} |")
+            return f"| {nombre} | {s.get('planificadas', 0)} | 0 | {s.get('no_enviadas', 0)} | | | | | | | | |"
+        return (f"| {nombre} | {s['planificadas']} | {s['peticiones']} | {s['no_enviadas']} | {s['throughput_rps']} | {s['post']['p50_ms']} | "
+                f"{s['post']['p95_ms']} | {s['post']['p99_ms']} | {s['errores_pct']} | {s['errores_pct_planificada']} | "
+                f"{s['peor_ventana_errores_pct']} | {s.get('lag_max_s', '')} |")
     ok = lambda b: "✅" if b else "❌"
     lineas = [
         f"# Resultado {run}", "",
@@ -445,8 +515,11 @@ def resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, 
         f"- Predicción: `{pred['archivo']}` sha256 `{pred['sha256'][:12]}…`" + (" (**PENDIENTE: corrida de prueba**)" if pred["pendiente"] else ""),
         f"- Grafana: {enlaces['grafana']}", "",
         "## Por fase (cliente: k6, todas las peticiones; latencias de POST /ordenes)", "",
-        "| Fase | Peticiones | req/s | p50 POST ms | p95 POST ms | p99 POST ms | % errores | peor ventana 60 s % | lag máx s |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "No enviadas = iteraciones que k6 no pudo lanzar por falta de VUs (`dropped_iterations`). "
+        "% errores (enviadas) = 5xx o sin respuesta / enviadas; % errores (planificada) = (errores + no enviadas) / planificadas; "
+        "la peor ventana de 60 s y el SLO usan la carga planificada.", "",
+        "| Fase | Planificadas | Enviadas | No enviadas | req/s enviadas | p50 POST ms | p95 POST ms | p99 POST ms | % errores (enviadas) | % errores (planificada) | peor ventana 60 s % | lag máx s |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         fila("baseline", por_fase["baseline"]), fila("falla", por_fase["falla"]), fila("recuperación", por_fase["recuperacion"]), "",
         "## SLO", "",
         "| Fase | p95 ≤ {p95} ms | p99 ≤ {p99} ms | errores < {e} % (60 s) | lag < {lag} s |".format(
@@ -493,7 +566,7 @@ def main():
 
     fases = exp["fases"]
     total = fases["baseline_s"] + fases["falla_s"] + fases["recuperacion_s"]
-    http("DELETE", f"{API}/admin/faults")
+    kill_switch(timeline, "kill_switch_inicial")
     time.sleep(2)
     r = sh("make", "lab-reset")
     timeline("lab_reset", salida=r.stdout.strip().splitlines()[-2:] if r.stdout else r.stderr[-300:])
@@ -523,15 +596,14 @@ def main():
             raise SystemExit(f"no se pudo activar la falla: {c} {resp}")
         time.sleep(max(0.0, marcas["falla_on"] + fases["falla_s"] - ahora()))
 
-        c, _ = http("DELETE", f"{API}/admin/faults")
-        marcas["kill"] = ahora()
+        marcas["kill"] = kill_switch(timeline)
         estado["actual"] = "recuperacion"
-        timeline("kill_switch", codigo=c)
         salida_k6, _ = k6.communicate(timeout=fases["recuperacion_s"] + 120)
         marcas["fin"] = ahora()
         timeline("fin_carga", k6_codigo=k6.returncode)
     except BaseException:
         timeline("abortado", detalle="kill switch de emergencia")
+        kill_switch_archivo()
         http("DELETE", f"{API}/admin/faults")
         sh("docker", "rm", "-f", f"k6-{run.lower()}")
         raise
@@ -541,7 +613,7 @@ def main():
 
     # ------------------------------------------------------------ evidencia
     print("recolectando evidencia…", flush=True)
-    filas = compactar_k6(dirs["metrics"])
+    filas, no_enviadas = compactar_k6(dirs["metrics"])
     ini, fin = marcas["baseline"], marcas["fin"]
     series = guardar_prometheus(dirs["metrics"] / "prometheus", ini - 30, fin + 15)
     lag_serie = [(float(ts), float(v)) for s in series.get("outbox_lag_s", []) for ts, v in s["values"]]
@@ -553,16 +625,20 @@ def main():
     por_fase = {}
     for nombre, (t0, t1) in tramos.items():
         sub = [x for x in filas if t0 <= x["ts"] < t1]
-        s = stats(sub)
+        sub_no_env = [x for x in no_enviadas if t0 <= x < t1]
+        s = con_no_enviadas(stats(sub), sub_no_env)
         if s.get("peticiones"):
-            s["peor_ventana_errores_pct"] = peor_ventana_errores(sub, t0, t1, slo["slo"]["ventana_errores_s"])
+            # El SLO de errores se evalúa sobre la carga planificada: una petición que k6 no pudo
+            # enviar es un usuario sin servicio. Sobre lo enviado queda como referencia.
+            s["peor_ventana_errores_enviadas_pct"] = peor_ventana_errores(sub, t0, t1, slo["slo"]["ventana_errores_s"])
+            s["peor_ventana_errores_pct"] = peor_ventana_errores(sub, t0, t1, slo["slo"]["ventana_errores_s"], sub_no_env)
             s["lag_max_s"] = round(max([v for ts, v in lag_serie if t0 <= ts < t1] or [0]), 1)
             s["cumple"] = {"p95": (s["post"]["p95_ms"] or 0) <= slo["slo"]["p95_post_ms"],
                            "p99": (s["post"]["p99_ms"] or 0) <= slo["slo"]["p99_post_ms"],
                            "errores": s["peor_ventana_errores_pct"] < slo["slo"]["errores_pct"],
                            "lag": s["lag_max_s"] < slo["slo"]["lag_outbox_s"]}
         por_fase[nombre] = s
-    rec = recuperacion(filas, marcas["kill"], fin, slo["slo"], lag_serie)
+    rec = recuperacion(filas, marcas["kill"], fin, slo["slo"], lag_serie, no_enviadas)
     claves_expuestas = sorted({x["clave"] for x in filas if marcas["falla_on"] <= x["ts"] < marcas["kill"]})
     enlaces = {"grafana": f"{GRAFANA}/d/lab-entregable3?from={int((ini - 30) * 1000)}&to={int((fin + 15) * 1000)}",
                "jaeger": f"{JAEGER}/search?service=ordenes-api&start={int(marcas['falla_on'] * 1e6)}&end={int(marcas['kill'] * 1e6)}"}
@@ -572,7 +648,8 @@ def main():
         indent=2, ensure_ascii=False), encoding="utf-8")
     resumen = {"run": run, "experimento": exp["definicion"]["id"], "prueba": a.prueba, "marcas_utc": {k: iso(v) for k, v in marcas.items()},
                "por_fase": por_fase, "recuperacion": rec, "slo": slo["slo"], "inyecciones": len(inyecciones),
-               "claves_expuestas_durante_falla": len(claves_expuestas), "trazas": len(trazas), "enlaces": enlaces}
+               "claves_expuestas_durante_falla": len(claves_expuestas), "no_enviadas_total": len(no_enviadas),
+               "trazas": len(trazas), "enlaces": enlaces}
     (dirs["results"] / "resumen.json").write_text(json.dumps(resumen, indent=2, ensure_ascii=False), encoding="utf-8")
     (dirs["results"] / "resumen.md").write_text(resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, enlaces), encoding="utf-8")
     (dirs["experiments"] / "prediccion.md").write_text(pred.pop("texto"), encoding="utf-8")

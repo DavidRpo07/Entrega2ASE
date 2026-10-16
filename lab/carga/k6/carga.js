@@ -22,7 +22,7 @@ export const options = {
       timeUnit: '1s',
       duration: __ENV.DURACION || '2m',
       preAllocatedVUs: Number(__ENV.VUS || 20),
-      maxVUs: Number(__ENV.VUS_MAX || 200),
+      maxVUs: Number(__ENV.VUS_MAX || 1000),
     },
   },
   summaryTrendStats: ['min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max', 'count'],

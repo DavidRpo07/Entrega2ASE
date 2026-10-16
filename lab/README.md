@@ -178,10 +178,19 @@ make experimento-prueba ID=A1      # make limpiar-pruebas para borrarlos
   Protocolo, tasa y SLO: `lab/slo.yaml`. Evidencia: `evidencia/` (ver `evidencia/README.md`).
 - El runner (`lab/experimentos/runner.py`): kill switch → `make lab-reset` → k6 a tasa constante →
   baseline (desde la primera petición real, según nginx) → `POST /admin/faults` → falla →
-  `DELETE /admin/faults` → recuperación → recolecta k6, Prometheus, logs, trazas y escribe
+  kill switch → recuperación → recolecta k6, Prometheus, logs, trazas y escribe
   `results/<RUN>/resumen.md` (por fase, SLO, tiempo de recuperación). Las fases se asignan por la
   hora de inicio de cada petición. La falla lleva `duracion_s` = fase + 30 s: si el runner muere,
   expira sola (y Ctrl+C dispara el kill switch).
+- El kill switch del runner escribe `kill_switch: true` en `faults.yaml` desde dentro de
+  `fallas-ext` (`docker compose exec`) y, en paralelo, manda `DELETE /admin/faults`. No depende de
+  la API: en el primer intento de B1 el DELETE esperó 82 s en la fila de la API saturada. Se escribe
+  desde un contenedor porque con Docker Desktop el `os.replace` hecho en el host no llega atómico al
+  montaje (una API leyó el archivo a medias). La demora del DELETE queda en `logs/<RUN>/runner.jsonl`.
+- k6 prealoca `vus_max` VUs (`lab/slo.yaml`, 1000): con la API a 15 s por petición, 200 VUs se
+  agotaron y k6 dejó de enviar carga. Las iteraciones no enviadas (`dropped_iterations`) quedan en
+  `metrics/<RUN>/no_enviadas.csv.gz` y en el resumen; el % de errores se da sobre lo enviado y
+  sobre la carga planificada, y el SLO de errores y la recuperación usan la planificada.
 - Se niega a correr si la predicción falta o sigue en PENDIENTE; guarda su sha256 y el commit.
 - B2 y D1 se activan igual que las demás (los ejecuta `fallas-ext`).
 - Reproducibilidad: `python3 lab/experimentos/comparar_inyecciones.py <RUN1> <RUN2>` compara qué

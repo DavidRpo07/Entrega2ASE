@@ -4,6 +4,7 @@
 
 carga:
   tasa_rps: 20            # tasa constante de k6 (constant-arrival-rate)
+  vus_max: 1000           # VUs de k6, prealocados (con 200 se agotaron en B1 con la API a 15 s y k6 dejó de enviar)
   semilla: 42
   n: 30000                # operaciones generadas (la carga se recorre en orden desde el índice 0)
 
