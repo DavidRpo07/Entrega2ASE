@@ -1,0 +1,29 @@
+{
+  "etiqueta": "fase4",
+  "repeticiones": 3,
+  "throughput_req_s": [
+    941.2,
+    960.48,
+    964.38
+  ],
+  "duracion_s": [
+    1.61815,
+    1.585659,
+    1.579254
+  ],
+  "mediana_req_s": 960.48,
+  "mediana_duracion_s": 1.585659,
+  "exitosas": [
+    1523
+  ],
+  "motivos": {
+    "ok": 1523,
+    "estado_invalido": 3323,
+    "sin_contrato_vigente": 154
+  },
+  "filas_q3_media": [
+    null,
+    null,
+    null
+  ]
+}

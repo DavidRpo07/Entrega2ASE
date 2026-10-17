@@ -86,11 +86,18 @@ class LogisticaService:
 
 
 class OrdenesService:
-    def __init__(self, cursor, prov_svc, cat_svc, log_svc):
+    # Estados que admite ordenes.orden_compra (CHECK chk_orden_estadoor de modelo-fisico.sql).
+    ESTADOS_VALIDOS = frozenset({"PENDIENTE", "EN_VALIDACION", "CONFIRMADA", "RECHAZADA", "CANCELADA"})
+
+    def __init__(self, cursor, prov_svc, cat_svc, log_svc, validar_estado_primero=True):
         self.cursor = cursor
         self.prov_svc = prov_svc
         self.cat_svc = cat_svc
         self.log_svc = log_svc
+        # E3, optimización 2: una orden con estado inválido se rechaza antes de consultar los
+        # demás módulos y de reservar franja (en el E2 llegaba hasta el INSERT y fallaba por el
+        # CHECK, después de Q1, Q2 y el UPDATE de Q3). False = comportamiento del E2.
+        self.validar_estado_primero = validar_estado_primero
         
         self._insert_orden = """
             INSERT INTO ordenes.orden_compra (
@@ -107,6 +114,10 @@ class OrdenesService:
     def crear_orden_transaccional(self, dto):
         ord_id, prov_id, cedi_id, f_crea, f_ent, f_rec, estado, total = dto
         sku_demo = 101
+
+        # 0. Validación local del módulo Órdenes (fail-fast, sin tocar la base)
+        if self.validar_estado_primero and estado not in self.ESTADOS_VALIDOS:
+            raise ValueError(f"Estado de orden inválido: {estado}")
 
         # 1. Validación Q1 (Módulo Proveedores)
         self.prov_svc.validar_contrato_vigente(prov_id, f_crea)

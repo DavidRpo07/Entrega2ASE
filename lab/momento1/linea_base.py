@@ -127,13 +127,33 @@ def restaurar_franjas(cur):
     return cur.rowcount
 
 
-def fase4(salida: Path, restaurar: bool = False, desglose: bool = False, etiqueta: str = "fase4"):
+def preparar_estado():
+    """Mismo punto de partida en cada repetición: sin órdenes de la Fase 4, franjas como en el
+    CSV y VACUUM ANALYZE (sin tuplas muertas de la corrida anterior)."""
+    conn = psycopg2.connect(**DB)
+    conn.autocommit = True
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM ordenes.linea_orden WHERE orden_id BETWEEN 600001 AND 999999")
+        cur.execute("DELETE FROM ordenes.orden_compra WHERE orden_id BETWEEN 600001 AND 999999")
+        cur.execute("BEGIN")
+        n = restaurar_franjas(cur)
+        cur.execute("COMMIT")
+        cur.execute("VACUUM (ANALYZE) logistica.franja_descargue, ordenes.orden_compra, ordenes.linea_orden")
+    conn.close()
+    return n
+
+
+def fase4(salida: Path, restaurar: bool = False, desglose: bool = False, etiqueta: str = "fase4",
+          preparar: bool = False):
     mod = cargar_modulo("ejecutar_fase4_modulith.py")
     mod.CSV_OPERACIONES = salida / f"{etiqueta}_operaciones.csv"
     mod.CSV_RESUMEN = salida / f"{etiqueta}_resumen.csv"
     mod.RESULTADOS_DIR = salida
+    if preparar:
+        restauradas = preparar_estado()
     with psycopg2.connect(**DB) as conn, conn.cursor() as cur:
-        restauradas = restaurar_franjas(cur) if restaurar else None
+        if not preparar:
+            restauradas = restaurar_franjas(cur) if restaurar else None
         conn.commit()
         antes = estado_franjas(cur)
 
@@ -179,12 +199,14 @@ def fase4(salida: Path, restaurar: bool = False, desglose: bool = False, etiquet
     with mod.CSV_OPERACIONES.open(encoding="utf-8") as f:
         ops = list(csv.DictReader(f))
     motivos = Counter("ok" if not o["error"] else "sin_contrato_vigente" if "sin contrato vigente" in o["error"]
-                      else "check_estado_orden" if "chk_orden_estado" in o["error"] else "otro" for o in ops)
+                      else "check_estado_orden" if "chk_orden_estado" in o["error"]
+                      else "estado_invalido" if "Estado de orden inválido" in o["error"] else "otro" for o in ops)
     with mod.CSV_RESUMEN.open(encoding="utf-8") as f:
         res = next(csv.DictReader(f))
     lat = [float(o["latencia_ms"]) for o in ops]
     info = {"etiqueta": etiqueta, "medido_utc": ahora_utc(), "csv_ordenes": str(CSV_FASE4.relative_to(RAIZ)),
-            "restaurar_franjas": restaurar, "franjas_restauradas": restauradas, "desglose": desglose,
+            "restaurar_franjas": restaurar or preparar, "preparar_estado": preparar,
+            "franjas_restauradas": restauradas, "desglose": desglose,
             "ordenes": len(ops), "exitosas": int(res["exitosas"]), "rechazadas": int(res["rechazadas"]),
             "motivos": dict(motivos), "duracion_s": float(res["duracion_s"]),
             "throughput_req_s": round(float(res["throughput_req_s"]), 2),
@@ -279,6 +301,10 @@ def main():
     f.add_argument("--etiqueta", default="fase4")
     f.add_argument("--restaurar-franjas", action="store_true")
     f.add_argument("--desglose", action="store_true")
+    f.add_argument("--repeticiones", type=int, default=1,
+                   help="N corridas, cada una desde el mismo estado (implica --preparar); resumen con la mediana")
+    f.add_argument("--preparar", action="store_true",
+                   help="antes de medir: borra las órdenes de la Fase 4, restaura franjas y hace VACUUM ANALYZE")
     tb = sub.add_parser("tabla")
     tb.add_argument("salida")
     a = ap.parse_args()
@@ -291,8 +317,19 @@ def main():
     salida.mkdir(parents=True, exist_ok=True)
     if a.cmd == "consultas":
         consultas(salida)
+    elif a.cmd == "fase4" and a.repeticiones > 1:
+        corridas = [fase4(salida, desglose=a.desglose, etiqueta=f"{a.etiqueta}_r{i}", preparar=True)
+                    for i in range(1, a.repeticiones + 1)]
+        rps = [c["throughput_req_s"] for c in corridas]
+        dur = [c["duracion_s"] for c in corridas]
+        res = {"etiqueta": a.etiqueta, "repeticiones": a.repeticiones, "throughput_req_s": rps,
+               "duracion_s": dur, "mediana_req_s": statistics.median(rps), "mediana_duracion_s": statistics.median(dur),
+               "exitosas": sorted({c["exitosas"] for c in corridas}), "motivos": corridas[0]["motivos"],
+               "filas_q3_media": [c.get("filas_q3_media") for c in corridas]}
+        (salida / f"{a.etiqueta}.json").write_text(json.dumps(res, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"  {a.etiqueta}: mediana {res['mediana_req_s']} req/s ({rps})")
     elif a.cmd == "fase4":
-        fase4(salida, a.restaurar_franjas, a.desglose, a.etiqueta)
+        fase4(salida, a.restaurar_franjas, a.desglose, a.etiqueta, a.preparar)
     else:
         print(f"línea base en {salida.relative_to(RAIZ)}", flush=True)
         if a.recargar:
