@@ -1,0 +1,5 @@
+ts_utc,ts,serie,valor
+2026-10-17T01:57:12.976+00:00,1792202232.976,"efecto=lock_franjas,falla_id=B2",0
+2026-10-17T01:57:17.976+00:00,1792202237.976,"efecto=lock_franjas,falla_id=B2",0
+2026-10-17T01:57:12.976+00:00,1792202232.976,"efecto=servicio_detenido,falla_id=D1",0
+2026-10-17T01:57:17.976+00:00,1792202237.976,"efecto=servicio_detenido,falla_id=D1",0

@@ -1,0 +1,178 @@
+{
+  "run": "O1-trazas-off_20261017T015738Z",
+  "experimento": "O1",
+  "prueba": false,
+  "correcciones": [],
+  "trazas": 0,
+  "marcas_utc": {
+    "baseline": "2026-10-17T01:57:42.976+00:00",
+    "falla_on": "2026-10-17T02:02:42.980+00:00",
+    "kill": "2026-10-17T02:07:42.983+00:00",
+    "fin": "2026-10-17T02:09:43.856+00:00"
+  },
+  "por_fase": {
+    "baseline": {
+      "peticiones": 6002,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 4225,
+        "p50_ms": 5.3,
+        "p95_ms": 9.6,
+        "p99_ms": 13.4,
+        "max_ms": 136.2
+      },
+      "todas": {
+        "p50_ms": 5.8,
+        "p95_ms": 24.8,
+        "p99_ms": 30.7
+      },
+      "por_op": {
+        "crear": {
+          "n": 4225,
+          "p95_ms": 9.6
+        },
+        "listar": {
+          "n": 1192,
+          "p95_ms": 30.0
+        },
+        "precio": {
+          "n": 585,
+          "p95_ms": 6.3
+        }
+      },
+      "codigos": {
+        "200": 1777,
+        "201": 4225
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 6002,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.1,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "falla": {
+      "peticiones": 6000,
+      "throughput_rps": 20.0,
+      "post": {
+        "n": 4194,
+        "p50_ms": 5.5,
+        "p95_ms": 9.9,
+        "p99_ms": 14.2,
+        "max_ms": 79.2
+      },
+      "todas": {
+        "p50_ms": 6.0,
+        "p95_ms": 25.7,
+        "p99_ms": 30.6
+      },
+      "por_op": {
+        "crear": {
+          "n": 4194,
+          "p95_ms": 9.9
+        },
+        "listar": {
+          "n": 1218,
+          "p95_ms": 30.1
+        },
+        "precio": {
+          "n": 588,
+          "p95_ms": 7.0
+        }
+      },
+      "codigos": {
+        "200": 1806,
+        "201": 4194
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 6000,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.1,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "recuperacion": {
+      "peticiones": 2398,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 1666,
+        "p50_ms": 5.5,
+        "p95_ms": 9.6,
+        "p99_ms": 14.2,
+        "max_ms": 73.9
+      },
+      "todas": {
+        "p50_ms": 5.9,
+        "p95_ms": 25.5,
+        "p99_ms": 32.5
+      },
+      "por_op": {
+        "crear": {
+          "n": 1666,
+          "p95_ms": 9.6
+        },
+        "listar": {
+          "n": 457,
+          "p95_ms": 32.5
+        },
+        "precio": {
+          "n": 275,
+          "p95_ms": 7.3
+        }
+      },
+      "codigos": {
+        "200": 732,
+        "201": 1666
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 2398,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 0.9,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    }
+  },
+  "recuperacion": {
+    "recuperado": true,
+    "segundos": 0.0,
+    "cliente_s": 0.0,
+    "lag_s": 0.0,
+    "cumple_slo": true
+  },
+  "slo": {
+    "p95_post_ms": 100,
+    "p99_post_ms": 250,
+    "errores_pct": 1.0,
+    "ventana_errores_s": 60,
+    "lag_outbox_s": 10,
+    "recuperacion_s": 20
+  },
+  "inyecciones": 0,
+  "claves_expuestas_durante_falla": 6000,
+  "no_enviadas_total": 0,
+  "enlaces": {
+    "grafana": "http://localhost:3000/d/lab-entregable3?from=1792202232976&to=1792202998856",
+    "jaeger": "http://localhost:16686/search?service=ordenes-api&start=1792202562980982&end=1792202862983207"
+  }
+}

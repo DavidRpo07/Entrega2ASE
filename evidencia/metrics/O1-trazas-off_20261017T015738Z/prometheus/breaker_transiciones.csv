@@ -1,0 +1,11 @@
+ts_utc,ts,serie,valor
+2026-10-17T01:57:12.976+00:00,1792202232.976,"hacia=abierto,nombre=catalogo",4
+2026-10-17T01:57:17.976+00:00,1792202237.976,"hacia=abierto,nombre=catalogo",1
+2026-10-17T01:57:12.976+00:00,1792202232.976,"hacia=abierto,nombre=ext_sap",10
+2026-10-17T01:57:17.976+00:00,1792202237.976,"hacia=abierto,nombre=ext_sap",10
+2026-10-17T01:57:12.976+00:00,1792202232.976,"hacia=cerrado,nombre=catalogo",1
+2026-10-17T01:57:12.976+00:00,1792202232.976,"hacia=cerrado,nombre=ext_sap",1
+2026-10-17T01:57:17.976+00:00,1792202237.976,"hacia=cerrado,nombre=ext_sap",1
+2026-10-17T01:57:12.976+00:00,1792202232.976,"hacia=semiabierto,nombre=catalogo",1
+2026-10-17T01:57:12.976+00:00,1792202232.976,"hacia=semiabierto,nombre=ext_sap",8
+2026-10-17T01:57:17.976+00:00,1792202237.976,"hacia=semiabierto,nombre=ext_sap",8
