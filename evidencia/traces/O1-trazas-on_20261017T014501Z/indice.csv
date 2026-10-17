@@ -1,0 +1,11 @@
+grupo,trace_id,servicio,inicio_utc,duracion_ms,spans,jaeger
+baseline_muestra,5e11b415ebca373025fa8622904316f8,ordenes-api,2026-10-17T01:50:06.681+00:00,4.0,24,http://localhost:16686/trace/5e11b415ebca373025fa8622904316f8
+baseline_muestra,9212d6a413ce325d13de2dcaa3c17b09,ordenes-api,2026-10-17T01:50:06.781+00:00,3.7,24,http://localhost:16686/trace/9212d6a413ce325d13de2dcaa3c17b09
+baseline_muestra,43d9cab0b2a50af4b09afe2218bf0399,ordenes-api,2026-10-17T01:50:06.831+00:00,4.2,24,http://localhost:16686/trace/43d9cab0b2a50af4b09afe2218bf0399
+baseline_muestra,62e2b9098fa0473bb597f157c7df2c92,ordenes-api,2026-10-17T01:50:06.880+00:00,5.1,24,http://localhost:16686/trace/62e2b9098fa0473bb597f157c7df2c92
+baseline_muestra,4e14079a68a6372c8f0e503b1aadafa4,ordenes-api,2026-10-17T01:50:06.931+00:00,4.4,24,http://localhost:16686/trace/4e14079a68a6372c8f0e503b1aadafa4
+recuperacion_muestra,a6713e6130124d4a61c362313297bcbc,ordenes-api,2026-10-17T01:57:06.533+00:00,6.4,24,http://localhost:16686/trace/a6713e6130124d4a61c362313297bcbc
+recuperacion_muestra,e2a571adc0715333f683c3b347faf1c1,ordenes-api,2026-10-17T01:57:06.683+00:00,3.5,24,http://localhost:16686/trace/e2a571adc0715333f683c3b347faf1c1
+recuperacion_muestra,f7094bd27e043fe7eec9470346361ebb,ordenes-api,2026-10-17T01:57:06.783+00:00,3.1,24,http://localhost:16686/trace/f7094bd27e043fe7eec9470346361ebb
+recuperacion_muestra,3f38e04d44b6bb30a4d1cd227ab42791,ordenes-api,2026-10-17T01:57:06.882+00:00,8.1,24,http://localhost:16686/trace/3f38e04d44b6bb30a4d1cd227ab42791
+recuperacion_muestra,672840c59a4e418f92c494edba859767,ordenes-api,2026-10-17T01:57:06.933+00:00,5.7,24,http://localhost:16686/trace/672840c59a4e418f92c494edba859767
