@@ -1,0 +1,139 @@
+=================================================================
+EJECUTANDO FASE 0 Y FASE 2: CARGA MASIVA Y ANALYZE
+=================================================================
+
+--- FASE 0: RECREANDO MODELO FÍSICO (ESQUEMA LIMPIO) ---
+NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to table proveedores.proveedor
+drop cascades to table proveedores.contrato_suministro
+NOTICE:  drop cascades to 2 other objects
+DETAIL:  drop cascades to table catalogo.sku
+drop cascades to table catalogo.catalogo_negociado
+NOTICE:  drop cascades to 4 other objects
+DETAIL:  drop cascades to table ordenes.orden_compra
+drop cascades to table ordenes.linea_orden
+drop cascades to table ordenes.confirmacion_orden
+drop cascades to table ordenes.outbox_evento
+NOTICE:  drop cascades to 3 other objects
+DETAIL:  drop cascades to table logistica.cedi
+drop cascades to table logistica.franja_descargue
+drop cascades to table logistica.reserva_franja
+NOTICE:  drop cascades to table auditoria.evento_auditoria
+✓ Esquemas limpios creados desde modelo-fisico.sql.
+
+--- FASE 2: CARGA MASIVA CON COPY Y REPORTE DE TIEMPOS ---
+Cargando proveedores.proveedor ( 10M)... Done (490 ms)
+Cargando proveedores.contrato_suministro (1.3M)... Done (181 ms)
+Cargando catalogo.sku ( 36M)... Done (1908 ms)
+Cargando catalogo.catalogo_negociado ( 33M)... Done (1880 ms)
+Cargando logistica.cedi (4.0K)... Done (108 ms)
+Cargando logistica.franja_descargue (7.1M)... Done (457 ms)
+Cargando ordenes.orden_compra ( 50M)... Done (893 ms)
+Cargando ordenes.linea_orden ( 86M)... Done (7394 ms)
+Cargando auditoria.evento_auditoria (112M)... Done (2034 ms)
+
+--- REAJUSTANDO SECUENCIAS IDENTITY (setval) ---
+✓ Secuencias ajustadas correctamente.
+
+--- CREANDO ÍNDICES SECUNDARIOS BASE (SIN Q4 Y Q5) ---
+✓ Índices base creados (350 ms).
+
+--- EJECUTANDO ANALYZE EN TODOS LOS ESQUEMAS ---
+INFO:  analyzing "proveedores.proveedor"
+INFO:  "proveedor": scanned 1413 of 1413 pages, containing 100000 live rows and 0 dead rows; 30000 rows in sample, 100000 estimated total rows
+INFO:  analyzing "proveedores.contrato_suministro"
+INFO:  "contrato_suministro": scanned 171 of 171 pages, containing 15000 live rows and 0 dead rows; 15000 rows in sample, 15000 estimated total rows
+INFO:  analyzing "catalogo.sku"
+INFO:  "sku": scanned 6162 of 6162 pages, containing 400000 live rows and 0 dead rows; 30000 rows in sample, 400000 estimated total rows
+INFO:  analyzing "catalogo.catalogo_negociado"
+INFO:  "catalogo_negociado": scanned 4124 of 4124 pages, containing 399997 live rows and 0 dead rows; 30000 rows in sample, 399997 estimated total rows
+INFO:  analyzing "logistica.cedi"
+INFO:  "cedi": scanned 1 of 1 pages, containing 5 live rows and 0 dead rows; 5 rows in sample, 5 estimated total rows
+INFO:  analyzing "logistica.franja_descargue"
+INFO:  "franja_descargue": scanned 1452 of 1452 pages, containing 127750 live rows and 0 dead rows; 30000 rows in sample, 127750 estimated total rows
+INFO:  analyzing "ordenes.orden_compra"
+INFO:  "orden_compra": scanned 6010 of 6010 pages, containing 500000 live rows and 0 dead rows; 30000 rows in sample, 500000 estimated total rows
+INFO:  analyzing "ordenes.linea_orden"
+INFO:  "linea_orden": scanned 20255 of 20255 pages, containing 2036384 live rows and 0 dead rows; 30000 rows in sample, 2036384 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria" inheritance tree
+INFO:  "evento_auditoria_y2025m01": scanned 658 of 658 pages, containing 34547 live rows and 0 dead rows; 1297 rows in sample, 34547 estimated total rows
+INFO:  "evento_auditoria_y2025m02": scanned 594 of 594 pages, containing 31164 live rows and 0 dead rows; 1170 rows in sample, 31164 estimated total rows
+INFO:  "evento_auditoria_y2025m03": scanned 659 of 659 pages, containing 34597 live rows and 0 dead rows; 1299 rows in sample, 34597 estimated total rows
+INFO:  "evento_auditoria_y2025m04": scanned 635 of 635 pages, containing 33312 live rows and 0 dead rows; 1251 rows in sample, 33312 estimated total rows
+INFO:  "evento_auditoria_y2025m05": scanned 652 of 652 pages, containing 34241 live rows and 0 dead rows; 1285 rows in sample, 34241 estimated total rows
+INFO:  "evento_auditoria_y2025m06": scanned 632 of 632 pages, containing 33203 live rows and 0 dead rows; 1245 rows in sample, 33203 estimated total rows
+INFO:  "evento_auditoria_y2025m07": scanned 663 of 663 pages, containing 34791 live rows and 0 dead rows; 1306 rows in sample, 34791 estimated total rows
+INFO:  "evento_auditoria_y2025m08": scanned 655 of 655 pages, containing 34376 live rows and 0 dead rows; 1291 rows in sample, 34376 estimated total rows
+INFO:  "evento_auditoria_y2025m09": scanned 640 of 640 pages, containing 33553 live rows and 0 dead rows; 1261 rows in sample, 33553 estimated total rows
+INFO:  "evento_auditoria_y2025m10": scanned 659 of 659 pages, containing 34570 live rows and 0 dead rows; 1299 rows in sample, 34570 estimated total rows
+INFO:  "evento_auditoria_y2025m11": scanned 631 of 631 pages, containing 33113 live rows and 0 dead rows; 1243 rows in sample, 33113 estimated total rows
+INFO:  "evento_auditoria_y2025m12": scanned 651 of 651 pages, containing 34160 live rows and 0 dead rows; 1283 rows in sample, 34160 estimated total rows
+INFO:  "evento_auditoria_y2026m01": scanned 658 of 658 pages, containing 34511 live rows and 0 dead rows; 1297 rows in sample, 34511 estimated total rows
+INFO:  "evento_auditoria_y2026m02": scanned 594 of 594 pages, containing 31215 live rows and 0 dead rows; 1170 rows in sample, 31215 estimated total rows
+INFO:  "evento_auditoria_y2026m03": scanned 653 of 653 pages, containing 34287 live rows and 0 dead rows; 1287 rows in sample, 34287 estimated total rows
+INFO:  "evento_auditoria_y2026m04": scanned 629 of 629 pages, containing 33048 live rows and 0 dead rows; 1239 rows in sample, 33048 estimated total rows
+INFO:  "evento_auditoria_y2026m05": scanned 656 of 656 pages, containing 34419 live rows and 0 dead rows; 1293 rows in sample, 34419 estimated total rows
+INFO:  "evento_auditoria_y2026m06": scanned 638 of 638 pages, containing 33479 live rows and 0 dead rows; 1257 rows in sample, 33479 estimated total rows
+INFO:  "evento_auditoria_y2026m07": scanned 665 of 665 pages, containing 34878 live rows and 0 dead rows; 1310 rows in sample, 34878 estimated total rows
+INFO:  "evento_auditoria_y2026m08": scanned 657 of 657 pages, containing 34493 live rows and 0 dead rows; 1295 rows in sample, 34493 estimated total rows
+INFO:  "evento_auditoria_y2026m09": scanned 636 of 636 pages, containing 33396 live rows and 0 dead rows; 1253 rows in sample, 33396 estimated total rows
+INFO:  "evento_auditoria_y2026m10": scanned 659 of 659 pages, containing 34601 live rows and 0 dead rows; 1299 rows in sample, 34601 estimated total rows
+INFO:  "evento_auditoria_y2026m11": scanned 643 of 643 pages, containing 33784 live rows and 0 dead rows; 1267 rows in sample, 33784 estimated total rows
+INFO:  "evento_auditoria_y2026m12": scanned 399 of 399 pages, containing 21859 live rows and 0 dead rows; 786 rows in sample, 21859 estimated total rows
+INFO:  "evento_auditoria_default": scanned 9 of 9 pages, containing 403 live rows and 0 dead rows; 17 rows in sample, 403 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m01"
+INFO:  "evento_auditoria_y2025m01": scanned 658 of 658 pages, containing 34547 live rows and 0 dead rows; 30000 rows in sample, 34547 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m02"
+INFO:  "evento_auditoria_y2025m02": scanned 594 of 594 pages, containing 31164 live rows and 0 dead rows; 30000 rows in sample, 31164 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m03"
+INFO:  "evento_auditoria_y2025m03": scanned 659 of 659 pages, containing 34597 live rows and 0 dead rows; 30000 rows in sample, 34597 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m04"
+INFO:  "evento_auditoria_y2025m04": scanned 635 of 635 pages, containing 33312 live rows and 0 dead rows; 30000 rows in sample, 33312 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m05"
+INFO:  "evento_auditoria_y2025m05": scanned 652 of 652 pages, containing 34241 live rows and 0 dead rows; 30000 rows in sample, 34241 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m06"
+INFO:  "evento_auditoria_y2025m06": scanned 632 of 632 pages, containing 33203 live rows and 0 dead rows; 30000 rows in sample, 33203 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m07"
+INFO:  "evento_auditoria_y2025m07": scanned 663 of 663 pages, containing 34791 live rows and 0 dead rows; 30000 rows in sample, 34791 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m08"
+INFO:  "evento_auditoria_y2025m08": scanned 655 of 655 pages, containing 34376 live rows and 0 dead rows; 30000 rows in sample, 34376 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m09"
+INFO:  "evento_auditoria_y2025m09": scanned 640 of 640 pages, containing 33553 live rows and 0 dead rows; 30000 rows in sample, 33553 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m10"
+INFO:  "evento_auditoria_y2025m10": scanned 659 of 659 pages, containing 34570 live rows and 0 dead rows; 30000 rows in sample, 34570 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m11"
+INFO:  "evento_auditoria_y2025m11": scanned 631 of 631 pages, containing 33113 live rows and 0 dead rows; 30000 rows in sample, 33113 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2025m12"
+INFO:  "evento_auditoria_y2025m12": scanned 651 of 651 pages, containing 34160 live rows and 0 dead rows; 30000 rows in sample, 34160 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m01"
+INFO:  "evento_auditoria_y2026m01": scanned 658 of 658 pages, containing 34511 live rows and 0 dead rows; 30000 rows in sample, 34511 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m02"
+INFO:  "evento_auditoria_y2026m02": scanned 594 of 594 pages, containing 31215 live rows and 0 dead rows; 30000 rows in sample, 31215 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m03"
+INFO:  "evento_auditoria_y2026m03": scanned 653 of 653 pages, containing 34287 live rows and 0 dead rows; 30000 rows in sample, 34287 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m04"
+INFO:  "evento_auditoria_y2026m04": scanned 629 of 629 pages, containing 33048 live rows and 0 dead rows; 30000 rows in sample, 33048 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m05"
+INFO:  "evento_auditoria_y2026m05": scanned 656 of 656 pages, containing 34419 live rows and 0 dead rows; 30000 rows in sample, 34419 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m06"
+INFO:  "evento_auditoria_y2026m06": scanned 638 of 638 pages, containing 33479 live rows and 0 dead rows; 30000 rows in sample, 33479 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m07"
+INFO:  "evento_auditoria_y2026m07": scanned 665 of 665 pages, containing 34878 live rows and 0 dead rows; 30000 rows in sample, 34878 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m08"
+INFO:  "evento_auditoria_y2026m08": scanned 657 of 657 pages, containing 34493 live rows and 0 dead rows; 30000 rows in sample, 34493 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m09"
+INFO:  "evento_auditoria_y2026m09": scanned 636 of 636 pages, containing 33396 live rows and 0 dead rows; 30000 rows in sample, 33396 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m10"
+INFO:  "evento_auditoria_y2026m10": scanned 659 of 659 pages, containing 34601 live rows and 0 dead rows; 30000 rows in sample, 34601 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m11"
+INFO:  "evento_auditoria_y2026m11": scanned 643 of 643 pages, containing 33784 live rows and 0 dead rows; 30000 rows in sample, 33784 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_y2026m12"
+INFO:  "evento_auditoria_y2026m12": scanned 399 of 399 pages, containing 21859 live rows and 0 dead rows; 21859 rows in sample, 21859 estimated total rows
+INFO:  analyzing "auditoria.evento_auditoria_default"
+INFO:  "evento_auditoria_default": scanned 9 of 9 pages, containing 403 live rows and 0 dead rows; 403 rows in sample, 403 estimated total rows
+✓ ANALYZE ejecutado exitosamente (2493 ms).
+
+=================================================================
+FASE 0 Y FASE 2 COMPLETADAS EXITOSAMENTE EN 18647 ms
+=================================================================
+Reporte de carga: /Users/david/ProyectoASE/evidencia/linea_base/20261017T035415Z/carga.csv

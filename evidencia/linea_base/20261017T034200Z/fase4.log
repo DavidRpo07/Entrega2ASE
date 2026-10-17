@@ -1,0 +1,11 @@
+Iniciando ingesta real en PostgreSQL de 5,000 órdenes...
+
+==============================================
+RESULTADOS FASE 4: INYECCIÓN RUTA REAL (POSTGRESQL)
+==============================================
+Órdenes insertadas en BD: 1,523
+Órdenes rechazadas:       3,477
+Tiempo total:             5.1380 segundos
+Rendimiento Ingesta:      296.42 req/segundo
+Evidencia cruda:           /Users/david/ProyectoASE/evidencia/linea_base/20261017T034200Z/fase4_operaciones.csv
+Resumen:                   /Users/david/ProyectoASE/evidencia/linea_base/20261017T034200Z/fase4_resumen.csv
