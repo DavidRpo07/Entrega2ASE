@@ -121,7 +121,7 @@ lab-carga: $(CARGA)
 PY ?= $(if $(wildcard venv/bin/python),venv/bin/python,python3)
 
 # Fase 4: CORRECCION=on enciende las correcciones de lab/correcciones.yaml (experimentos.<ID>) con la
-# misma falla y semilla; exige evidencia/predictions/<ID>-corr.md en LISTA y nombra la corrida <ID>-corr_<UTC>.
+# misma falla y semilla; no exige ficha de predicción y nombra la corrida <ID>-corr_<UTC>.
 CORRECCION ?= off
 
 # En macOS el runner corre bajo `caffeinate -i` (sin reposo por inactividad, también con batería):

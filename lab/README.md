@@ -226,8 +226,9 @@ curl -X PUT localhost:8080/admin/correcciones -H 'Content-Type: application/json
   `experimentos.<ID>` en `lab/correcciones.yaml`, antes del `lab-reset` (el baseline ya corre corregido y
   mide su costo); escribe el archivo desde `fallas-ext` (como el kill switch) con `corrida: <RUN>`, lo que
   reinicia breakers y caché de precios en cada corrida; espera a ver `correccion_activa` en api-1, api-2 y
-  worker; y al terminar (también si aborta) las apaga. Exige `evidencia/predictions/<ID>-corr.md` en
-  `Estado: LISTA`. Manifest y resumen registran la configuración aplicada. `caffeinate` y el detector de
+  worker; y al terminar (también si aborta) las apaga. No exige ficha de predicción (decisión del
+  equipo: el entregable la pide por falla; sigue siendo obligatoria sin corrección). Manifest y resumen
+  registran la configuración aplicada. `caffeinate` y el detector de
   reposo funcionan igual.
 - **Timeout de Catálogo, cómo funciona**: la latencia de A1 la inyecta un `sleep` en el mismo hilo y con
   el cursor de la transacción, así que el timeout es un *deadline* cooperativo (`INYECTOR.plazo(ms)`): una
@@ -253,4 +254,4 @@ make lab-up                                        # restaura las trazas
 ```
 
 El runner toma el estado de `trazas_activas` (debe ser igual en todos los procesos) y lo pone en el nombre
-de la corrida. Predicción: `evidencia/predictions/O1.md`.
+de la corrida. No exige ficha de predicción.

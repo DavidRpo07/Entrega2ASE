@@ -3,7 +3,7 @@
 
     make experimento ID=A1            # corrida real: exige evidencia/predictions/A1.md en estado LISTA
     make experimento ID=A1 CORRECCION=on   # fase 4: misma falla y semilla con las correcciones de
-                                           # lab/correcciones.yaml (experimentos.A1); exige A1-corr.md
+                                           # lab/correcciones.yaml (experimentos.A1); sin ficha de predicción
     make experimento-prueba ID=A1     # corrida corta de prueba (prefijo PRUEBA-, ignorada por git)
 
 Correcciones: al empezar, el runner reescribe lab/runtime/correcciones.yaml (desde fallas-ext) con
@@ -332,8 +332,12 @@ def correcciones_de(exp_id: str, correccion: bool) -> list:
     return list(mapa[exp_id])
 
 
-def prediccion(exp_id: str, prueba: bool, correccion: bool = False) -> dict:
-    ruta = EVID / "predictions" / (f"{exp_id}-corr.md" if correccion else f"{exp_id}.md")
+def prediccion(exp_id: str, prueba: bool, correccion: bool = False, con_falla: bool = True) -> dict | None:
+    """La predicción previa es obligatoria para las corridas de una falla sin corregir. Las corridas
+    con CORRECCION=on y O1 (sin falla) no la exigen: decisión del equipo (el entregable la pide por falla)."""
+    if correccion or not con_falla:
+        return None
+    ruta = EVID / "predictions" / f"{exp_id}.md"
     if not ruta.exists():
         raise SystemExit(f"falta la predicción {ruta.relative_to(RAIZ)}")
     texto = ruta.read_text(encoding="utf-8")
@@ -631,7 +635,8 @@ def resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, 
         f"- Trazas (OpenTelemetry): {'encendidas' if trazas_on else 'APAGADAS (TRAZAS=off)'}",
         f"- Fases: baseline {exp['fases']['baseline_s']} s · falla {exp['fases']['falla_s']} s · recuperación {exp['fases']['recuperacion_s']} s · tasa {slo['carga']['tasa_rps']} req/s",
         f"- Marcas (UTC): baseline {iso(marcas['baseline'])} · falla {iso(marcas['falla_on'])} · kill switch {iso(marcas['kill'])} · fin {iso(marcas['fin'])}",
-        f"- Predicción: `{pred['archivo']}` sha256 `{pred['sha256'][:12]}…`" + (" (**PENDIENTE: corrida de prueba**)" if pred["pendiente"] else ""),
+        (f"- Predicción: `{pred['archivo']}` sha256 `{pred['sha256'][:12]}…`" + (" (**PENDIENTE: corrida de prueba**)" if pred["pendiente"] else "")
+         if pred else "- Predicción: no se exige (corrida con corrección o sin falla)"),
         f"- Grafana: {enlaces['grafana']}", "",
         "## Por fase (cliente: k6, todas las peticiones; latencias de POST /ordenes)", "",
         "No enviadas = iteraciones que k6 no pudo lanzar por falta de VUs (`dropped_iterations`). "
@@ -657,8 +662,10 @@ def resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, 
                f"- Trazas guardadas: {len(trazas)} (`evidencia/traces/{run}/indice.csv`)",
                f"- Métricas: `evidencia/metrics/{run}/` (peticiones.csv.gz de k6 y series de Prometheus)",
                f"- Logs: `evidencia/logs/{run}/` (JSON por servicio con trace_id; nginx con upstream/status)", "",
-               "## Predicción vs. resultado (lo completa el equipo)", "",
-               "| Señal | Predicción | Resultado | Diferencia y por qué |", "| --- | --- | --- | --- |", "| | | | |", ""]
+               *(["## Predicción vs. resultado (lo completa el equipo)", "",
+                  "| Señal | Predicción | Resultado | Diferencia y por qué |"] if pred else
+                 ["## Antes vs. después (lo completa el equipo)", "",
+                  "| Señal | Antes | Después | Por qué |"]), "| --- | --- | --- | --- |", "| | | | |", ""]
     return "\n".join(lineas)
 
 
@@ -678,7 +685,7 @@ def main():
     slo = yaml.safe_load((RAIZ / "lab/slo.yaml").read_text(encoding="utf-8"))
     exp = cargar_definicion(a.id, slo, a.prueba, {"baseline_s": a.baseline_s, "falla_s": a.falla_s, "recuperacion_s": a.recuperacion_s})
     activas = correcciones_de(a.id, correccion)
-    pred = prediccion(a.id, a.prueba, correccion)
+    pred = prediccion(a.id, a.prueba, correccion, exp["falla"] is not None)
     t_min, t_max = valor("min(trazas_activas)"), valor("max(trazas_activas)")
     if t_min != t_max or math.isnan(t_min):
         raise SystemExit(f"trazas_activas no es igual en todos los procesos (min {t_min}, max {t_max}): reinicie con make lab-up")
@@ -822,7 +829,8 @@ def main():
                "trazas": len(trazas), "enlaces": enlaces}
     (dirs["results"] / "resumen.json").write_text(json.dumps(resumen, indent=2, ensure_ascii=False), encoding="utf-8")
     (dirs["results"] / "resumen.md").write_text(resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, enlaces, corr, trazas_on), encoding="utf-8")
-    (dirs["experiments"] / "prediccion.md").write_text(pred.pop("texto"), encoding="utf-8")
+    if pred:
+        (dirs["experiments"] / "prediccion.md").write_text(pred.pop("texto"), encoding="utf-8")
     datos = RAIZ / "lab/carga/datos" / f"carga_s{slo['carga']['semilla']}_n{slo['carga']['n']}.json"
     manifest = {
         "run": run, "prueba": a.prueba, "definicion": exp["archivo"], "falla_aplicada": exp["falla"], "fases": fases,
