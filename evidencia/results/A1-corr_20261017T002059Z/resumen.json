@@ -1,0 +1,181 @@
+{
+  "run": "A1-corr_20261017T002059Z",
+  "experimento": "A1",
+  "prueba": false,
+  "correcciones": [
+    "catalogo"
+  ],
+  "trazas": 30,
+  "marcas_utc": {
+    "baseline": "2026-10-17T00:21:08.533+00:00",
+    "falla_on": "2026-10-17T00:26:08.565+00:00",
+    "kill": "2026-10-17T00:31:08.858+00:00",
+    "fin": "2026-10-17T00:33:09.732+00:00"
+  },
+  "por_fase": {
+    "baseline": {
+      "peticiones": 6002,
+      "throughput_rps": 20.0,
+      "post": {
+        "n": 4225,
+        "p50_ms": 5.6,
+        "p95_ms": 18.9,
+        "p99_ms": 42.2,
+        "max_ms": 222.7
+      },
+      "todas": {
+        "p50_ms": 6.3,
+        "p95_ms": 26.5,
+        "p99_ms": 68.4
+      },
+      "por_op": {
+        "crear": {
+          "n": 4225,
+          "p95_ms": 18.9
+        },
+        "listar": {
+          "n": 1192,
+          "p95_ms": 49.5
+        },
+        "precio": {
+          "n": 585,
+          "p95_ms": 12.3
+        }
+      },
+      "codigos": {
+        "200": 1777,
+        "201": 4225
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 6002,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.2,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "falla": {
+      "peticiones": 6006,
+      "throughput_rps": 20.0,
+      "post": {
+        "n": 4197,
+        "p50_ms": 8.2,
+        "p95_ms": 211.4,
+        "p99_ms": 224.2,
+        "max_ms": 436.7
+      },
+      "todas": {
+        "p50_ms": 10.7,
+        "p95_ms": 210.1,
+        "p99_ms": 222.6
+      },
+      "por_op": {
+        "crear": {
+          "n": 4197,
+          "p95_ms": 211.4
+        },
+        "listar": {
+          "n": 1221,
+          "p95_ms": 51.4
+        },
+        "precio": {
+          "n": 588,
+          "p95_ms": 207.7
+        }
+      },
+      "codigos": {
+        "200": 1578,
+        "201": 2893,
+        "503": 1535
+      },
+      "errores_pct": 25.558,
+      "no_enviadas": 0,
+      "planificadas": 6006,
+      "errores_pct_planificada": 25.558,
+      "peor_ventana_errores_enviadas_pct": 37.833,
+      "peor_ventana_errores_pct": 37.833,
+      "lag_max_s": 1.1,
+      "cumple": {
+        "p95": false,
+        "p99": true,
+        "errores": false,
+        "lag": true
+      }
+    },
+    "recuperacion": {
+      "peticiones": 2393,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 1664,
+        "p50_ms": 6.1,
+        "p95_ms": 28.4,
+        "p99_ms": 53.4,
+        "max_ms": 211.2
+      },
+      "todas": {
+        "p50_ms": 6.9,
+        "p95_ms": 32.9,
+        "p99_ms": 75.3
+      },
+      "por_op": {
+        "crear": {
+          "n": 1664,
+          "p95_ms": 28.4
+        },
+        "listar": {
+          "n": 454,
+          "p95_ms": 63.9
+        },
+        "precio": {
+          "n": 275,
+          "p95_ms": 13.8
+        }
+      },
+      "codigos": {
+        "200": 729,
+        "201": 1664
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 2393,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.2,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    }
+  },
+  "recuperacion": {
+    "recuperado": true,
+    "segundos": 0.0,
+    "cliente_s": 0.0,
+    "lag_s": 0.0,
+    "cumple_slo": true
+  },
+  "slo": {
+    "p95_post_ms": 100,
+    "p99_post_ms": 250,
+    "errores_pct": 1.0,
+    "ventana_errores_s": 60,
+    "lag_outbox_s": 10,
+    "recuperacion_s": 20
+  },
+  "inyecciones": 1208,
+  "claves_expuestas_durante_falla": 6006,
+  "no_enviadas_total": 0,
+  "enlaces": {
+    "grafana": "http://localhost:3000/d/lab-entregable3?from=1792196438533&to=1792197204732",
+    "jaeger": "http://localhost:16686/search?service=ordenes-api&start=1792196768565724&end=1792197068858195"
+  }
+}
