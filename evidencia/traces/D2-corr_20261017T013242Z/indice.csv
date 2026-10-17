@@ -1,0 +1,16 @@
+grupo,trace_id,servicio,inicio_utc,duracion_ms,spans,jaeger
+baseline_muestra,daa9d4eadee2fb81038bacf6311288a8,ordenes-api,2026-10-17T01:37:50.457+00:00,6.3,24,http://localhost:16686/trace/daa9d4eadee2fb81038bacf6311288a8
+baseline_muestra,d44a1e9d41a6cf0b6592f91ee29dce59,ordenes-api,2026-10-17T01:37:50.806+00:00,14.1,24,http://localhost:16686/trace/d44a1e9d41a6cf0b6592f91ee29dce59
+baseline_muestra,50ebb5bf9f53f9da11cd7bc73385edc8,ordenes-api,2026-10-17T01:37:50.855+00:00,3.9,38,http://localhost:16686/trace/50ebb5bf9f53f9da11cd7bc73385edc8
+baseline_muestra,f6e362769de7ef75763b39c07461a10f,ordenes-api,2026-10-17T01:37:50.906+00:00,5.0,24,http://localhost:16686/trace/f6e362769de7ef75763b39c07461a10f
+baseline_muestra,6d1b9058f6b27e39ce2dabf6fad272b9,ordenes-api,2026-10-17T01:37:50.955+00:00,4.6,38,http://localhost:16686/trace/6d1b9058f6b27e39ce2dabf6fad272b9
+falla_worker_errores,397231979ce1a09599319253237fbdb9,outbox-worker,2026-10-17T01:37:53.555+00:00,4.0,31,http://localhost:16686/trace/397231979ce1a09599319253237fbdb9
+falla_worker_errores,8e8916eeffdd725f9583ca850a8c3a6e,outbox-worker,2026-10-17T01:37:53.656+00:00,7.1,31,http://localhost:16686/trace/8e8916eeffdd725f9583ca850a8c3a6e
+falla_worker_errores,8cdf040a273b26bedbdc9a321375a7ae,outbox-worker,2026-10-17T01:37:53.904+00:00,3.6,31,http://localhost:16686/trace/8cdf040a273b26bedbdc9a321375a7ae
+falla_worker_errores,cfc7919b74e2e3f73f6b6c3b822936c1,outbox-worker,2026-10-17T01:37:54.255+00:00,3.4,31,http://localhost:16686/trace/cfc7919b74e2e3f73f6b6c3b822936c1
+falla_worker_errores,7846c937e1e6b15838149aebb52289ed,outbox-worker,2026-10-17T01:37:54.305+00:00,2.7,31,http://localhost:16686/trace/7846c937e1e6b15838149aebb52289ed
+recuperacion_muestra,d9bfcb55d2a01482950bc185b0e72dab,ordenes-api,2026-10-17T01:44:50.557+00:00,2.9,17,http://localhost:16686/trace/d9bfcb55d2a01482950bc185b0e72dab
+recuperacion_muestra,9eaa0332e724e81ce5910285a23f859f,ordenes-api,2026-10-17T01:44:50.708+00:00,7.4,17,http://localhost:16686/trace/9eaa0332e724e81ce5910285a23f859f
+recuperacion_muestra,7e8509da6fe07a2a80939d85800d223e,ordenes-api,2026-10-17T01:44:50.811+00:00,2.9,17,http://localhost:16686/trace/7e8509da6fe07a2a80939d85800d223e
+recuperacion_muestra,c5d048821089c8fdd9136ec0d9b70638,ordenes-api,2026-10-17T01:44:50.910+00:00,9.2,17,http://localhost:16686/trace/c5d048821089c8fdd9136ec0d9b70638
+recuperacion_muestra,76c11743e9879ff8b2a50202dadd9cee,ordenes-api,2026-10-17T01:44:50.958+00:00,6.8,17,http://localhost:16686/trace/76c11743e9879ff8b2a50202dadd9cee
