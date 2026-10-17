@@ -1,0 +1,181 @@
+{
+  "run": "B2-corr-rep_20261017T040853Z",
+  "experimento": "B2",
+  "prueba": false,
+  "correcciones": [
+    "bulkhead"
+  ],
+  "trazas": 35,
+  "marcas_utc": {
+    "baseline": "2026-10-17T04:09:02.053+00:00",
+    "falla_on": "2026-10-17T04:11:02.082+00:00",
+    "kill": "2026-10-17T04:14:02.388+00:00",
+    "fin": "2026-10-17T04:15:03.366+00:00"
+  },
+  "por_fase": {
+    "baseline": {
+      "peticiones": 2402,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 1682,
+        "p50_ms": 5.8,
+        "p95_ms": 12.4,
+        "p99_ms": 25.8,
+        "max_ms": 171.2
+      },
+      "todas": {
+        "p50_ms": 6.3,
+        "p95_ms": 24.7,
+        "p99_ms": 31.4
+      },
+      "por_op": {
+        "crear": {
+          "n": 1682,
+          "p95_ms": 12.4
+        },
+        "listar": {
+          "n": 478,
+          "p95_ms": 30.3
+        },
+        "precio": {
+          "n": 242,
+          "p95_ms": 7.8
+        }
+      },
+      "codigos": {
+        "200": 720,
+        "201": 1682
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 2402,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.0,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "falla": {
+      "peticiones": 3606,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 2547,
+        "p50_ms": 7.0,
+        "p95_ms": 1008.9,
+        "p99_ms": 1109.0,
+        "max_ms": 1559.2
+      },
+      "todas": {
+        "p50_ms": 7.8,
+        "p95_ms": 1007.0,
+        "p99_ms": 1022.5
+      },
+      "por_op": {
+        "crear": {
+          "n": 2547,
+          "p95_ms": 1008.9
+        },
+        "listar": {
+          "n": 715,
+          "p95_ms": 32.0
+        },
+        "precio": {
+          "n": 344,
+          "p95_ms": 7.4
+        }
+      },
+      "codigos": {
+        "200": 1059,
+        "201": 2280,
+        "503": 267
+      },
+      "errores_pct": 7.404,
+      "no_enviadas": 0,
+      "planificadas": 3606,
+      "errores_pct_planificada": 7.404,
+      "peor_ventana_errores_enviadas_pct": 7.417,
+      "peor_ventana_errores_pct": 7.417,
+      "lag_max_s": 1.1,
+      "cumple": {
+        "p95": false,
+        "p99": false,
+        "errores": false,
+        "lag": true
+      }
+    },
+    "recuperacion": {
+      "peticiones": 1192,
+      "throughput_rps": 20.02,
+      "post": {
+        "n": 834,
+        "p50_ms": 5.5,
+        "p95_ms": 11.8,
+        "p99_ms": 23.7,
+        "max_ms": 34.2
+      },
+      "todas": {
+        "p50_ms": 6.2,
+        "p95_ms": 24.4,
+        "p99_ms": 32.5
+      },
+      "por_op": {
+        "crear": {
+          "n": 834,
+          "p95_ms": 11.8
+        },
+        "listar": {
+          "n": 248,
+          "p95_ms": 31.7
+        },
+        "precio": {
+          "n": 110,
+          "p95_ms": 6.7
+        }
+      },
+      "codigos": {
+        "200": 358,
+        "201": 834
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 1192,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.0,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    }
+  },
+  "recuperacion": {
+    "recuperado": true,
+    "segundos": 0.0,
+    "cliente_s": 0.0,
+    "lag_s": 0.0,
+    "cumple_slo": true
+  },
+  "slo": {
+    "p95_post_ms": 100,
+    "p99_post_ms": 250,
+    "errores_pct": 1.0,
+    "ventana_errores_s": 60,
+    "lag_outbox_s": 10,
+    "recuperacion_s": 20
+  },
+  "inyecciones": 0,
+  "claves_expuestas_durante_falla": 3606,
+  "no_enviadas_total": 0,
+  "enlaces": {
+    "grafana": "http://localhost:3000/d/lab-entregable3?from=1792210112053&to=1792210518366",
+    "jaeger": "http://localhost:16686/search?service=ordenes-api&start=1792210262082036&end=1792210442388824"
+  }
+}
