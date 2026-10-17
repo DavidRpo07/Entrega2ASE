@@ -1,0 +1,178 @@
+{
+  "run": "A1-rep_20261017T040244Z",
+  "experimento": "A1",
+  "prueba": false,
+  "correcciones": [],
+  "trazas": 25,
+  "marcas_utc": {
+    "baseline": "2026-10-17T04:02:49.437+00:00",
+    "falla_on": "2026-10-17T04:04:49.457+00:00",
+    "kill": "2026-10-17T04:07:49.733+00:00",
+    "fin": "2026-10-17T04:08:50.676+00:00"
+  },
+  "por_fase": {
+    "baseline": {
+      "peticiones": 2402,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 1682,
+        "p50_ms": 6.0,
+        "p95_ms": 14.8,
+        "p99_ms": 32.1,
+        "max_ms": 174.7
+      },
+      "todas": {
+        "p50_ms": 6.5,
+        "p95_ms": 25.4,
+        "p99_ms": 49.1
+      },
+      "por_op": {
+        "crear": {
+          "n": 1682,
+          "p95_ms": 14.8
+        },
+        "listar": {
+          "n": 478,
+          "p95_ms": 35.0
+        },
+        "precio": {
+          "n": 242,
+          "p95_ms": 7.6
+        }
+      },
+      "codigos": {
+        "200": 720,
+        "201": 1682
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 2402,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.1,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "falla": {
+      "peticiones": 3605,
+      "throughput_rps": 20.01,
+      "post": {
+        "n": 2547,
+        "p50_ms": 8.2,
+        "p95_ms": 813.0,
+        "p99_ms": 837.6,
+        "max_ms": 1117.8
+      },
+      "todas": {
+        "p50_ms": 10.8,
+        "p95_ms": 811.9,
+        "p99_ms": 826.4
+      },
+      "por_op": {
+        "crear": {
+          "n": 2547,
+          "p95_ms": 813.0
+        },
+        "listar": {
+          "n": 714,
+          "p95_ms": 49.9
+        },
+        "precio": {
+          "n": 344,
+          "p95_ms": 810.6
+        }
+      },
+      "codigos": {
+        "200": 1058,
+        "201": 2547
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 3605,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.9,
+      "cumple": {
+        "p95": false,
+        "p99": false,
+        "errores": true,
+        "lag": true
+      }
+    },
+    "recuperacion": {
+      "peticiones": 1193,
+      "throughput_rps": 20.02,
+      "post": {
+        "n": 834,
+        "p50_ms": 5.5,
+        "p95_ms": 10.8,
+        "p99_ms": 19.7,
+        "max_ms": 43.8
+      },
+      "todas": {
+        "p50_ms": 6.3,
+        "p95_ms": 22.8,
+        "p99_ms": 30.0
+      },
+      "por_op": {
+        "crear": {
+          "n": 834,
+          "p95_ms": 10.8
+        },
+        "listar": {
+          "n": 249,
+          "p95_ms": 29.3
+        },
+        "precio": {
+          "n": 110,
+          "p95_ms": 6.8
+        }
+      },
+      "codigos": {
+        "200": 359,
+        "201": 834
+      },
+      "errores_pct": 0.0,
+      "no_enviadas": 0,
+      "planificadas": 1193,
+      "errores_pct_planificada": 0.0,
+      "peor_ventana_errores_enviadas_pct": 0.0,
+      "peor_ventana_errores_pct": 0.0,
+      "lag_max_s": 1.7,
+      "cumple": {
+        "p95": true,
+        "p99": true,
+        "errores": true,
+        "lag": true
+      }
+    }
+  },
+  "recuperacion": {
+    "recuperado": true,
+    "segundos": 0.0,
+    "cliente_s": 0.0,
+    "lag_s": 0.0,
+    "cumple_slo": true
+  },
+  "slo": {
+    "p95_post_ms": 100,
+    "p99_post_ms": 250,
+    "errores_pct": 1.0,
+    "ventana_errores_s": 60,
+    "lag_outbox_s": 10,
+    "recuperacion_s": 20
+  },
+  "inyecciones": 838,
+  "claves_expuestas_durante_falla": 3605,
+  "no_enviadas_total": 0,
+  "enlaces": {
+    "grafana": "http://localhost:3000/d/lab-entregable3?from=1792209739437&to=1792210145676",
+    "jaeger": "http://localhost:16686/search?service=ordenes-api&start=1792209889457535&end=1792210069733734"
+  }
+}
