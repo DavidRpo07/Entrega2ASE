@@ -102,6 +102,40 @@ def consultas(salida: Path):
             log.write(f"===== {script} BENCHMARK_ETIQUETA={etiqueta}\n{buf.getvalue()}\n")
 
 
+def medir(salida: Path, scripts: list[str], etiqueta: str, repeticiones: int) -> dict:
+    """Repite N veces datos/medir_<q>.py (sin crear índices) y resume la mediana de cada percentil
+    entre repeticiones, con el método del informe del E2 para esa consulta."""
+    ref = yaml.safe_load(REFERENCIA.read_text(encoding="utf-8"))["consultas"]
+    registrar = cargar_modulo("registrar_evidencia.py")
+    sys.modules["registrar_evidencia"] = registrar
+    registrar.RESULTADOS_DIR = salida
+    resumen = {}
+    with (salida / f"medir_{etiqueta}.log").open("a", encoding="utf-8") as log:
+        for q in scripts:
+            metodo = ref[q.upper()]["metodo"]
+            por_rep = defaultdict(list)
+            for i in range(1, repeticiones + 1):
+                os.environ["BENCHMARK_ETIQUETA"] = f"{etiqueta}_r{i}"
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    cargar_modulo(f"medir_{q}.py").main()
+                log.write(f"===== medir_{q}.py {etiqueta}_r{i}\n{buf.getvalue()}\n")
+                datos = defaultdict(list)
+                with (salida / f"{q}_{etiqueta}_r{i}.csv").open(encoding="utf-8") as f:
+                    for x in csv.DictReader(f):
+                        datos[x["escenario"]].append(float(x["latencia_ms"]))
+                for esc, v in datos.items():
+                    por_rep[esc].append(percentiles(v, metodo))
+            resumen[q.upper()] = {"metodo": metodo, **{esc: {
+                "repeticiones": reps, "mediana": {m: round(statistics.median(r[m] for r in reps), 3)
+                                                  for m in ("p50", "p95", "p99")}} for esc, reps in por_rep.items()}}
+            print(f"  {q.upper()} {etiqueta}: " + " | ".join(
+                f"{esc} {resumen[q.upper()][esc]['mediana']}" for esc in ("frio", "caliente")), flush=True)
+    (salida / f"medir_{etiqueta}.json").write_text(json.dumps(resumen, indent=2, ensure_ascii=False) + "\n",
+                                                  encoding="utf-8")
+    return resumen
+
+
 # --------------------------------------------------------------------- fase 4
 def estado_franjas(cur) -> dict:
     cur.execute("""SELECT sum(reservas_actuales), count(*) FILTER (WHERE estado = 'COMPLETA'),
@@ -305,6 +339,11 @@ def main():
                    help="N corridas, cada una desde el mismo estado (implica --preparar); resumen con la mediana")
     f.add_argument("--preparar", action="store_true",
                    help="antes de medir: borra las órdenes de la Fase 4, restaura franjas y hace VACUUM ANALYZE")
+    m = sub.add_parser("medir", help="repite medir_q*.py N veces (sin crear índices) y da la mediana")
+    m.add_argument("--salida", required=True)
+    m.add_argument("--consultas", nargs="+", required=True, help="q1 … q5")
+    m.add_argument("--etiqueta", required=True)
+    m.add_argument("--repeticiones", type=int, default=3)
     tb = sub.add_parser("tabla")
     tb.add_argument("salida")
     a = ap.parse_args()
@@ -315,7 +354,9 @@ def main():
     salida = Path(a.salida).resolve() if a.salida else \
         RAIZ / "evidencia" / "linea_base" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     salida.mkdir(parents=True, exist_ok=True)
-    if a.cmd == "consultas":
+    if a.cmd == "medir":
+        medir(salida, [q.lower() for q in a.consultas], a.etiqueta, a.repeticiones)
+    elif a.cmd == "consultas":
         consultas(salida)
     elif a.cmd == "fase4" and a.repeticiones > 1:
         corridas = [fase4(salida, desglose=a.desglose, etiqueta=f"{a.etiqueta}_r{i}", preparar=True)

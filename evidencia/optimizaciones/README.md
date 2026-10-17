@@ -79,3 +79,38 @@ cada optimización se lee en esta tabla (mismo protocolo entre pasos).
   diseño).
 - **Aporte medido:** 958,47 → 1.036,97 req/s (+8 %), con la dispersión habitual entre corridas
   (931–1.063).
+
+## d. Índices cubrientes (INCLUDE) + VACUUM para Q4 y Q5
+
+- **Antes (E2):** `idx_orden_proveedor_confirmada (proveedor_id, fecha_creacion) WHERE estado =
+  'CONFIRMADA'`, `idx_linea_orden_id (orden_id)` e `idx_orden_proveedor_fecha (proveedor_id,
+  fecha_creacion DESC)`, seguidos de `ANALYZE`: los planes visitan el heap por cada fila.
+- **Ahora** (`datos/crear_indice_q4.py`, `datos/crear_indice_q5.py`; mismos nombres, se recrean):
+  `INCLUDE (fecha_recepcion, fecha_entrega_solicitada)` en el de órdenes confirmadas, `INCLUDE
+  (categoria, cantidad_solicitada, cantidad_recibida)` en el de líneas e `INCLUDE (orden_id, cedi_id,
+  estado, total)` en el de paginación, seguidos de `VACUUM (ANALYZE)` para el mapa de visibilidad.
+- **Planes** (`medir_despues_d.log`): Q5 pasa a `Index Only Scan … Heap Fetches: 0` (0,006–0,04 ms en
+  el servidor); en Q4 el join con `linea_orden` es `Index Only Scan` (Heap Fetches: 3) y el acceso a
+  `orden_compra` sigue siendo Bitmap Heap Scan (elección del planificador).
+- **Medición:** `linea_base.py medir --consultas q4 q5 --repeticiones 3`, mediana por percentil
+  (método inclusive, como el informe), sobre la misma base antes y después del cambio.
+
+| Consulta | Escenario | Métrica | E2 | Objetivo | Antes de d | Después de d | Cumple |
+|---|---|---|---|---|---|---|---|
+| Q4 | frio | p50 | 0.358 | 0.322 | 0.354 | 0.341 | no |
+| Q4 | frio | p95 | 0.419 | 0.377 | 0.398 | 0.384 | no |
+| Q4 | frio | p99 | 0.435 | 0.392 | 0.41 | 0.397 | no |
+| Q4 | caliente | p50 | 2.839 | 2.555 | 2.929 | 2.249 | sí |
+| Q4 | caliente | p95 | 9.334 | 8.401 | 9.356 | 7.977 | sí |
+| Q4 | caliente | p99 | 14.481 | 13.033 | 12.699 | 9.534 | sí |
+| Q5 | frio | p50 | 0.156 | 0.14 | 0.155 | 0.14 | sí |
+| Q5 | frio | p95 | 0.181 | 0.163 | 0.186 | 0.181 | no |
+| Q5 | frio | p99 | 0.191 | 0.172 | 0.204 | 0.184 | no |
+| Q5 | caliente | p50 | 0.25 | 0.225 | 0.274 | 0.223 | sí |
+| Q5 | caliente | p95 | 0.327 | 0.294 | 0.329 | 0.321 | no |
+| Q5 | caliente | p99 | 0.374 | 0.337 | 0.36 | 0.456 | no |
+
+- **Lectura:** Q4 caliente (la consulta pesada) cumple los tres objetivos; Q4 frío y Q5 mejoran pero
+  quedan cerca del objetivo sin alcanzarlo en varias métricas. En Q5 el servidor resuelve en
+  < 0,04 ms y el cliente mide 0,14–0,22 ms: el resto es el viaje de ida y vuelta de psycopg2 por la
+  red de Docker Desktop, que ningún índice reduce.
