@@ -148,9 +148,10 @@ momento1: db-up
 # Línea base E3 con las mismas cargas del E2: baja el lab, recarga la base desde datos/csv,
 # mide Q1–Q5 (secuencia de `make medir`) y la Fase 4 (mismas 5.000 órdenes) y arma la tabla
 # E2 vs. E3 vs. objetivo. Evidencia en evidencia/linea_base/<UTC>/ (no toca datos/resultados/).
+# MEDIANA_Q1_Q3=on (estado final E3): Q1–Q3 tres veces más y la tabla usa la mediana.
 linea-base: db-up
 	@docker compose rm -sf $(LAB_SERVICIOS)
-	@$(CAFEINA) $(PY) lab/momento1/linea_base.py todo --recargar
+	@$(CAFEINA) $(PY) lab/momento1/linea_base.py todo --recargar $(if $(filter on,$(MEDIANA_Q1_Q3)),--mediana-q1-q3)
 
 # Figuras del informe desde la evidencia guardada (requiere matplotlib): evidencia/figuras/<ID>.png
 figuras:

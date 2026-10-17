@@ -264,6 +264,8 @@ def fase4(salida: Path, restaurar: bool = False, desglose: bool = False, etiquet
 def tabla(salida: Path) -> dict:
     ref = yaml.safe_load(REFERENCIA.read_text(encoding="utf-8"))
     filas, md = [], []
+    medianas = json.loads((salida / "medir_mediana.json").read_text(encoding="utf-8")) \
+        if (salida / "medir_mediana.json").exists() else {}
     for qid, r in ref["consultas"].items():
         consulta = qid.split("_")[0]
         ruta = salida / f"{consulta.lower()}_{r['fase']}.csv"
@@ -275,12 +277,16 @@ def tabla(salida: Path) -> dict:
                 datos[x["escenario"]].append(float(x["latencia_ms"]))
         for esc in ("frio", "caliente"):
             e3 = percentiles(datos[esc], r["metodo"])
+            fuente = "1 corrida"
+            if qid in medianas:   # E3 (e): Q1–Q3 = mediana de 3 corridas
+                e3, fuente = medianas[qid][esc]["mediana"], f"mediana de {len(medianas[qid][esc]['repeticiones'])}"
             otro = percentiles(datos[esc], "exclusive" if r["metodo"] == "inclusive" else "inclusive")
             con_objetivo = r["fase"] != "antes_indice"
             for m in ("p50", "p95", "p99"):
                 e2 = r[esc][m]
                 obj = round(0.9 * e2, 3) if con_objetivo else None
                 filas.append({"consulta": consulta, "fase": r["fase"], "escenario": esc, "metrica": m, "metodo": r["metodo"],
+                              "fuente": fuente,
                               "e2": e2, "objetivo_e3": obj, "e3": e3[m], "e3_otro_metodo": otro[m],
                               "e3_sobre_e2": round(e3[m] / e2, 2), "cumple": (e3[m] <= obj) if obj else None})
     f4 = json.loads((salida / "fase4.json").read_text(encoding="utf-8")) if (salida / "fase4.json").exists() else None
@@ -321,6 +327,54 @@ def tabla(salida: Path) -> dict:
     return resumen
 
 
+def comparar(base: Path, final: Path) -> Path:
+    """Tabla final: E2 / línea base E3 / final E3 / objetivo (0,90 × E2) / ¿cumple? / mejora vs.
+    línea base E3. Lee resumen.json de ambas carpetas (las arma tabla())."""
+    b = json.loads((base / "resumen.json").read_text(encoding="utf-8"))
+    f = json.loads((final / "resumen.json").read_text(encoding="utf-8"))
+    clave = lambda x: (x["consulta"], x["fase"], x["escenario"], x["metrica"])
+    bi = {clave(x): x for x in b["consultas"]}
+    filas = []
+    for x in f["consultas"]:
+        y = bi[clave(x)]
+        filas.append({**{k: x[k] for k in ("consulta", "fase", "escenario", "metrica", "metodo", "e2", "objetivo_e3",
+                                            "cumple")}, "linea_base_e3": y["e3"], "final_e3": x["e3"],
+                      "fuente_final": x.get("fuente", "1 corrida"),
+                      "mejora_vs_linea_base_pct": round(100 * (y["e3"] - x["e3"]) / y["e3"], 1)})
+    f4b, f4f = b["fase4"], f["fase4"]
+    fase4_fila = {"e2_req_s": f4f["e2_req_s"], "linea_base_req_s": f4b["e3_req_s"], "final_req_s": f4f["e3_req_s"],
+                  "objetivo_req_s": f4f["objetivo_req_s"], "e2_duracion_s": f4f["e2_duracion_s"],
+                  "linea_base_duracion_s": f4b["e3_duracion_s"], "final_duracion_s": f4f["e3_duracion_s"],
+                  "objetivo_duracion_s": f4f["objetivo_duracion_s"], "cumple": f4f["cumple"],
+                  "mejora_vs_linea_base_pct": round(100 * (f4f["e3_req_s"] - f4b["e3_req_s"]) / f4b["e3_req_s"], 1)}
+    res = {"generado_utc": ahora_utc(), "linea_base": str(base.relative_to(RAIZ)), "final": str(final.relative_to(RAIZ)),
+           "consultas": filas, "fase4": fase4_fila}
+    (final / "comparacion.json").write_text(json.dumps(res, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    md = [f"# Tabla final: E2 vs. línea base E3 vs. final E3\n",
+          f"Línea base E3: `{base.relative_to(RAIZ)}` · Final E3: `{final.relative_to(RAIZ)}` · E2: informe "
+          "(`lab/momento1/referencia_e2.yaml`). Objetivo = 0,90 × E2. Mejora = (línea base − final) / línea base. "
+          "Q4/Q5 «antes_indice» son solo referencia (sin objetivo).\n",
+          "| Consulta | Fase | Escenario | Métrica | E2 (ms) | Línea base E3 (ms) | Final E3 (ms) | Objetivo (ms) | ¿Cumple? | Mejora vs. línea base |",
+          "|---|---|---|---|---|---|---|---|---|---|"]
+    for x in filas:
+        c = "—" if x["cumple"] is None else ("sí" if x["cumple"] else "**no**")
+        md.append(f"| {x['consulta']} | {x['fase']} | {x['escenario']} | {x['metrica']} | {x['e2']} | {x['linea_base_e3']} | "
+                  f"{x['final_e3']} | {x['objetivo_e3'] if x['objetivo_e3'] is not None else '—'} | {c} | "
+                  f"{x['mejora_vs_linea_base_pct']:+.1f} % |")
+    x = fase4_fila
+    md += ["\n## Fase 4 (5.000 órdenes; req/s = exitosas / duración)\n",
+           "| Métrica | E2 | Línea base E3 | Final E3 | Objetivo | ¿Cumple? | Mejora vs. línea base |",
+           "|---|---|---|---|---|---|---|",
+           f"| Throughput (req/s) | {x['e2_req_s']} | {x['linea_base_req_s']} | {x['final_req_s']} | ≥ {x['objetivo_req_s']} | "
+           f"{'sí' if x['cumple'] else '**no**'} | {x['mejora_vs_linea_base_pct']:+.1f} % |",
+           f"| Duración (s) | {x['e2_duracion_s']} | {x['linea_base_duracion_s']:.4f} | {x['final_duracion_s']:.4f} | "
+           f"≤ {x['objetivo_duracion_s']} | {'sí' if x['cumple'] else '**no**'} | |"]
+    destino = final / "tabla_final.md"
+    destino.write_text("\n".join(md) + "\n", encoding="utf-8")
+    print(destino.relative_to(RAIZ))
+    return destino
+
+
 # --------------------------------------------------------------------- main
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -328,6 +382,8 @@ def main():
     t = sub.add_parser("todo")
     t.add_argument("--recargar", action="store_true", help="recarga la base desde datos/csv antes de medir")
     t.add_argument("--salida")
+    t.add_argument("--mediana-q1-q3", action="store_true",
+                   help="además, Q1–Q3 tres veces; la tabla usa la mediana (optimización e)")
     c = sub.add_parser("consultas")
     c.add_argument("--salida", required=True)
     f = sub.add_parser("fase4")
@@ -344,12 +400,18 @@ def main():
     m.add_argument("--consultas", nargs="+", required=True, help="q1 … q5")
     m.add_argument("--etiqueta", required=True)
     m.add_argument("--repeticiones", type=int, default=3)
+    cp = sub.add_parser("comparar", help="tabla final: línea base E3 vs. final E3 vs. E2")
+    cp.add_argument("linea_base")
+    cp.add_argument("final")
     tb = sub.add_parser("tabla")
     tb.add_argument("salida")
     a = ap.parse_args()
 
     if a.cmd == "tabla":
         tabla(Path(a.salida).resolve())
+        return
+    if a.cmd == "comparar":
+        comparar(Path(a.linea_base).resolve(), Path(a.final).resolve())
         return
     salida = Path(a.salida).resolve() if a.salida else \
         RAIZ / "evidencia" / "linea_base" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -378,6 +440,8 @@ def main():
         subprocess.run([sys.executable, str(Path(__file__).with_name("manifest.py")), "--salida",
                         str(salida / "manifest.json")], check=True)
         consultas(salida)
+        if a.mediana_q1_q3:
+            medir(salida, ["q1", "q2", "q3"], "mediana", 3)
         fase4(salida)
         tabla(salida)
 
