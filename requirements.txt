@@ -1,3 +1,4 @@
 # Dependencias externas de Python del proyecto.
 psycopg2-binary==2.9.11
 pyyaml==6.0.2
+matplotlib==3.11.2   # figuras del informe (lab/experimentos/figuras.py)

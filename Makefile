@@ -1,6 +1,6 @@
 .PHONY: datos db-up db-down db-reset cargar verificar estrategias fase4 modulith medir limpiar-resultados test-lab \
 	lab-up lab-down lab-ps lab-logs lab-smoke lab-carga-datos lab-reset lab-carga \
-	experimento experimento-prueba limpiar-pruebas
+	experimento experimento-prueba limpiar-pruebas figuras
 
 # Flujo obligatorio del entregable: genera → carga → verifica.
 datos: db-up
@@ -139,3 +139,7 @@ experimento-prueba:
 
 limpiar-pruebas:
 	@rm -rf evidencia/*/PRUEBA-*
+
+# Figuras del informe desde la evidencia guardada (requiere matplotlib): evidencia/figuras/<ID>.png
+figuras:
+	@$(PY) lab/experimentos/figuras.py $(ID)

@@ -11,6 +11,7 @@ Cada corrida de `make experimento ID=<ID>` crea `<ID>_<UTC>` en cada carpeta:
 | `logs/<RUN>/` | logs JSON por servicio (`*.jsonl.gz`, con `trace_id`), nginx (upstream/status), `runner.jsonl` (marcas y muestras), `inyecciones.csv` (cada inyección con su clave) |
 | `traces/<RUN>/` | trazas de Jaeger (`*.json.gz`, formato de su API; se abren en Jaeger UI → JSON File): muestra del baseline, las más lentas y las con error durante la falla, muestra de la recuperación; `indice.csv` |
 | `results/<RUN>/` | `resumen.md` / `resumen.json`: por fase, cumplimiento del SLO, tiempo de recuperación y tabla predicción vs. resultado (la completa el equipo) |
+| `figuras/` | `<ID>.png` por experimento (`make figuras`, `lab/experimentos/figuras.py`): p95/p99 de POST y % de errores (ventana de 60 s) en el tiempo con las fases y el SLO; antes/después en la misma figura cuando hay corrección; lag del outbox en C2 y D2 |
 
 Fase 4: `make experimento ID=<ID> CORRECCION=on` crea `<ID>-corr_<UTC>` (sin ficha de predicción) con la
 misma falla y semilla que `<ID>_<UTC>`; el manifest guarda las correcciones aplicadas. El experimento de
