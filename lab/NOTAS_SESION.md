@@ -144,6 +144,19 @@ Fase 4 (correcciones, `CORRECCION=on`):
 | `O1-trazas-on_20261017T014501Z` | ✅ válida | El primer punto del baseline arrastra el lag del backlog de D2-corr (104 s); a los 5 s ya está en 0.6 s |
 | `O1-trazas-off_20261017T015738Z` | ✅ válida | `trazas_activas=0` en los 5 procesos durante toda la corrida |
 
+Repeticiones (reproducibilidad, ventana reducida 2 + 3 + 1 min, `--etiqueta rep`; base como en las
+corridas originales: sin índices de Q4/Q5 ni órdenes de la Fase 4):
+
+| Corrida | Estado | Comparada con |
+| --- | --- | --- |
+| `A1-rep_20261017T040244Z` | ✅ válida | `A1_20261016T205354Z` |
+| `B2-corr-rep_20261017T040853Z` | ✅ válida | `B2-corr_20261017T012023Z` |
+| `D2-rep_20261017T041511Z` | ✅ válida | `D2_20261016T233309Z` |
+
+Momento 1 y optimizaciones: `evidencia/momento1/`, `evidencia/linea_base/` y `evidencia/optimizaciones/README.md`.
+Limitación: los experimentos de fallas corrieron sin los índices de Q4/Q5 (`make lab-reset` no los crea),
+a diferencia del estado final del E2; no se repitieron por eso.
+
 Las notas de invalidez están al inicio del `resumen.md` de cada corrida inválida. Una carpeta renombrada
 conserva dentro el id original.
 

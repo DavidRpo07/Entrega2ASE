@@ -114,3 +114,37 @@ cada optimización se lee en esta tabla (mismo protocolo entre pasos).
   quedan cerca del objetivo sin alcanzarlo en varias métricas. En Q5 el servidor resuelve en
   < 0,04 ms y el cliente mide 0,14–0,22 ms: el resto es el viaje de ida y vuelta de psycopg2 por la
   red de Docker Desktop, que ningún índice reduce.
+
+## e. Q1–Q3: mediana de 3 corridas
+
+Q1–Q3 no cambian de SQL ni de índices. `make linea-base MEDIANA_Q1_Q3=on` las mide 3 veces más (100
+ejecuciones por escenario cada vez) y la tabla usa la mediana de cada percentil
+(`linea_base/<UTC>/medir_mediana.json`); la línea base E3 es de 1 corrida.
+
+## Tabla final
+
+`evidencia/linea_base/20261017T035415Z/tabla_final.md` (E2 / línea base E3 / final E3 / objetivo /
+¿cumple? / mejora vs. línea base E3). Resumen:
+
+- **Fase 4:** 413,69 (E2) → 296,42 (línea base E3) → **1.036,37 req/s** (final); objetivo ≥ 459,66: cumple.
+- **Q1–Q3:** los 18 valores cumplen 0,90 × E2.
+- **Q4 con índice:** caliente p95 y p99 cumplen; caliente p50 (2,721 vs. 2,555) y frío p50/p95/p99 no.
+- **Q5 con índice:** ninguno cumple en la corrida final (p. ej. frío p50 0,154 vs. 0,140).
+
+**Lectura de la mejora vs. la línea base E3.** Q1–Q3 y Q4/Q5 «antes_indice» no cambiaron entre las
+dos corridas (mismo SQL, mismos índices) y aun así mejoraron entre 9 y 67 %: es variación del entorno
+entre corridas (Docker Desktop en el mismo Mac), no efecto de las optimizaciones. Esas filas sirven de
+control: el aporte atribuible a cada optimización es el de la tabla por pasos de arriba (mismo protocolo,
+mediana de 3). Q1–Q3 cumplen el objetivo, pero ese cumplimiento depende del entorno, no de un cambio.
+
+## Decisiones tomadas
+
+1. La API del lab (`app/servicios.py`) conserva el comportamiento del E2 (sin a, b ni c) para que las
+   repeticiones de los experimentos de fallas sean comparables con las corridas originales.
+2. b no rechaza la orden si no hay franja con cupo (como el E2), para no cambiar la carga ni las 1.523
+   exitosas.
+3. La tabla final se mide con el mismo `make linea-base` que la línea base (base recién cargada); el
+   aporte por paso, con el protocolo de estado preparado y mediana de 3 (ver «Protocolo»).
+4. Q4/Q5 «antes_indice»: solo referencia, sin objetivo.
+5. Antes de las repeticiones del lab, la base se dejó como en las corridas originales (sin órdenes de la
+   Fase 4 ni índices de Q4/Q5); después se recrearon los índices finales (`crear_indice_q4/q5.py`).
