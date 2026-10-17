@@ -10,7 +10,7 @@ evidencia en `evidencia/README.md`.
   - Fase 1: API, outbox, ext-sap y nginx con 2 réplicas.
   - Fase 2: Prometheus, Grafana, Jaeger y logs JSON.
   - Fase 3: runner y los 8 experimentos.
-- **Fase 4 implementada** (2026-10-16), sin corridas todavía. Ver "Fase 4" en `lab/README.md`:
+- **Fase 4 implementada y corrida** (2026-10-16/17): 5 corridas corregidas válidas y O1 ×2. Ver "Fase 4" en `lab/README.md`:
   - correcciones en `lab/correcciones.yaml` (`catalogo` → A1, `bulkhead` → A2/B1/B2, `worker` → D2),
     en caliente, todas apagadas por defecto; `make experimento ID=<ID> CORRECCION=on` → `<ID>-corr_<UTC>`;
   - O1 (overhead de observabilidad): `make experimento ID=O1` con y sin `TRAZAS=off make lab-up`;
@@ -137,6 +137,12 @@ Fase 4 (correcciones, `CORRECCION=on`):
 | --- | --- | --- |
 | `A1-corr_20261017T002059Z` | ✅ válida | |
 | `A2-corr-INVALIDA_20261017T003353Z` | ❌ inválida | OOM de Jaeger (sin límite de memoria) a las 00:41:14, en plena falla; el runner no pudo leer las trazas y no escribió el resumen |
+| `A2-corr_20261017T005544Z` | ✅ válida | Repetición con Jaeger limitado (20 000 trazas, 1536 MiB) |
+| `B1-corr_20261017T010803Z` | ✅ válida | |
+| `B2-corr_20261017T012023Z` | ✅ válida | |
+| `D2-corr_20261017T013242Z` | ✅ válida | El breaker hacia ext-sap seguía abierto en el kill: el drenaje arranca unos 20 s tarde |
+| `O1-trazas-on_20261017T014501Z` | ✅ válida | El primer punto del baseline arrastra el lag del backlog de D2-corr (104 s); a los 5 s ya está en 0.6 s |
+| `O1-trazas-off_20261017T015738Z` | ✅ válida | `trazas_activas=0` en los 5 procesos durante toda la corrida |
 
 Las notas de invalidez están al inicio del `resumen.md` de cada corrida inválida. Una carpeta renombrada
 conserva dentro el id original.
