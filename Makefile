@@ -123,6 +123,8 @@ PY ?= $(if $(wildcard venv/bin/python),venv/bin/python,python3)
 # Fase 4: CORRECCION=on enciende las correcciones de lab/correcciones.yaml (experimentos.<ID>) con la
 # misma falla y semilla; no exige ficha de predicción y nombra la corrida <ID>-corr_<UTC>.
 CORRECCION ?= off
+# Opciones extra del runner, p. ej. RUNNER_ARGS="--baseline-s 120 --falla-s 180 --recuperacion-s 60 --etiqueta rep"
+RUNNER_ARGS ?=
 
 # En macOS el runner corre bajo `caffeinate -i` (sin reposo por inactividad, también con batería):
 # en B1 el Mac se durmió en plena falla. El runner además aborta si detecta una suspensión.
@@ -130,7 +132,7 @@ CAFEINA := $(shell command -v caffeinate >/dev/null 2>&1 && echo caffeinate -i)
 
 experimento:
 	@test -n "$(ID)" || (echo "uso: make experimento ID=A1 [CORRECCION=on]" && exit 1)
-	@$(CAFEINA) $(PY) lab/experimentos/runner.py --id $(ID) --correccion $(CORRECCION)
+	@$(CAFEINA) $(PY) lab/experimentos/runner.py --id $(ID) --correccion $(CORRECCION) $(RUNNER_ARGS)
 
 # Corrida corta de prueba del runner (30 s + 30 s + 25 s, prefijo PRUEBA-, ignorada por git).
 experimento-prueba:

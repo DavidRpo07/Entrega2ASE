@@ -33,12 +33,18 @@ def modulo(target: str):
 
 
 class ProveedorConFallas(ProveedorService):
+    def __init__(self, cursor, preparar=False):   # E2: sin sentencias preparadas (ver modulith)
+        super().__init__(cursor, preparar=preparar)
+
     @modulo("proveedores.validar_contrato")
     def validar_contrato_vigente(self, proveedor_id, fecha_evaluacion):
         return super().validar_contrato_vigente(proveedor_id, fecha_evaluacion)
 
 
 class CatalogoConFallas(CatalogoService):
+    def __init__(self, cursor, preparar=False):
+        super().__init__(cursor, preparar=preparar)
+
     @modulo("catalogo.validar_sku")
     def _validar_sku(self, proveedor_id, sku_id, fecha_evaluacion):
         return super().validar_sku_y_obtener_precio(proveedor_id, sku_id, fecha_evaluacion)
@@ -51,12 +57,19 @@ class CatalogoConFallas(CatalogoService):
 
 
 class LogisticaConFallas(LogisticaService):
+    def __init__(self, cursor, una_franja=False, preparar=False):   # E2: UPDATE de todas las franjas
+        super().__init__(cursor, una_franja=una_franja, preparar=preparar)
+
     @modulo("logistica.reservar_franja")
     def reservar_franja(self, cedi_id, fecha_entrega):
         return super().reservar_franja(cedi_id, fecha_entrega)
 
 
 class OrdenesConFallas(OrdenesService):
+    def __init__(self, cursor, prov_svc, cat_svc, log_svc, validar_estado_primero=False, preparar=False):
+        super().__init__(cursor, prov_svc, cat_svc, log_svc, validar_estado_primero=validar_estado_primero,
+                         preparar=preparar)
+
     _insert_outbox = """
         INSERT INTO ordenes.outbox_evento (aggregate_id, tipo_evento, payload)
         VALUES (%s, 'OrdenCreada', %s::jsonb);

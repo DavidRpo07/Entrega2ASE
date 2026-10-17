@@ -14,7 +14,7 @@ Protocolo (lab/slo.yaml): kill switch → make lab-reset → k6 a tasa constante
 baseline + falla + recuperación → activar la falla (POST /admin/faults) al terminar el
 baseline → kill switch (DELETE /admin/faults) al terminar la falla → recolectar evidencia.
 
-Evidencia por corrida (<RUN> = <ID>[-corr][-trazas-off]_<UTC>):
+Evidencia por corrida (<RUN> = <ID>[-corr][-trazas-off][-<etiqueta>]_<UTC>):
   evidencia/experiments/<RUN>/   manifest.json (config usada, marcas de tiempo, versiones), prediccion.md
   evidencia/baseline/<RUN>/      métricas del cliente en la fase baseline
   evidencia/metrics/<RUN>/       peticiones.csv.gz (k6, una fila por petición), prometheus/*.csv, k6_resumen.json
@@ -679,6 +679,8 @@ def main():
     ap.add_argument("--recuperacion-s", type=int)
     ap.add_argument("--correccion", choices=["on", "off"], default="off",
                     help="on: enciende las correcciones de lab/correcciones.yaml para este experimento (fase 4)")
+    ap.add_argument("--etiqueta", default="",
+                    help="se agrega al nombre de la corrida, p. ej. rep → A1-rep_<UTC> (repeticiones)")
     a = ap.parse_args()
     correccion = a.correccion == "on"
 
@@ -692,6 +694,7 @@ def main():
     trazas_on = t_min == 1.0
     sufijo = ("-corr" if correccion else "") + (("-trazas-on" if trazas_on else "-trazas-off") if exp["falla"] is None
                                                 else ("" if trazas_on else "-trazas-off"))
+    sufijo += f"-{a.etiqueta}" if a.etiqueta else ""
     run = ("PRUEBA-" if a.prueba else "") + f"{a.id}{sufijo}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     dirs = {k: EVID / k / run for k in ("experiments", "baseline", "metrics", "logs", "traces", "results")}
     for d in dirs.values():
