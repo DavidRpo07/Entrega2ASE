@@ -16,6 +16,7 @@ como en el CSV, `VACUUM ANALYZE`), lab apagado. Se reporta la mediana. Métrica 
 | 0. Código del E2 | `0_original/` | 400,25 | 362,88 · 404,58 · 400,25 | 1.523 |
 | a. Validar el estado antes de los módulos | `a_validar_estado/` | 960,48 | 941,20 · 960,48 · 964,38 | 1.523 |
 | b. (+a) UPDATE de Q3 a una sola franja, SKIP LOCKED | `b_una_franja/` | 958,47 | 996,97 · 958,47 · 887,43 | 1.523 |
+| c. (+a+b) Sentencias preparadas | `c_preparadas/` | 1.036,97 | 1.063,41 · 931,44 · 1.036,97 | 1.523 |
 
 Nota: con este protocolo el código del E2 da ~400 req/s, frente a 296,42 req/s de la línea base
 (`make linea-base`), que mide justo después de recargar la base: allí los datos recién copiados
@@ -67,3 +68,14 @@ cada optimización se lee en esta tabla (mismo protocolo entre pasos).
   del E2 no ejercita.
 - **Alcance:** `LogisticaService(cursor, una_franja=True)`; la API del lab usa `una_franja=False`
   (B2 bloquea franjas con `FOR UPDATE`: con SKIP LOCKED el experimento sería otro).
+
+## c. Sentencias preparadas
+
+- **Antes:** cada orden enviaba el texto completo de Q1, Q2, Q3 y los dos INSERT; PostgreSQL los
+  analizaba y planificaba en cada ejecución.
+- **Ahora:** `preparar_sentencia` hace `PREPARE` una vez por conexión y la ruta usa `EXECUTE`
+  (`datos/ejecutar_fase4_modulith.py`, `preparar=True` en los cuatro servicios). Mismo SQL, mismos
+  resultados; la API del lab usa `preparar=False` (psycopg 3 con pool: el PREPARE por conexión es otro
+  diseño).
+- **Aporte medido:** 958,47 → 1.036,97 req/s (+8 %), con la dispersión habitual entre corridas
+  (931–1.063).

@@ -79,6 +79,7 @@ def modulith(cursor) -> OrdenesConFallas:
     # La API del lab conserva el comportamiento con el que se corrieron los experimentos de
     # fallas (E2), para que sus repeticiones sean comparables: las optimizaciones del E3 sobre
     # la ruta de la Fase 4 (evidencia/optimizaciones/) quedan desactivadas aquí.
-    return OrdenesConFallas(cursor, ProveedorConFallas(cursor),
-                            CatalogoConFallas(cursor), LogisticaConFallas(cursor, una_franja=False),
-                            validar_estado_primero=False)
+    return OrdenesConFallas(cursor, ProveedorConFallas(cursor, preparar=False),
+                            CatalogoConFallas(cursor, preparar=False),
+                            LogisticaConFallas(cursor, una_franja=False, preparar=False),
+                            validar_estado_primero=False, preparar=False)

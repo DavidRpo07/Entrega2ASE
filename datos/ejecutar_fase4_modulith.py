@@ -19,11 +19,30 @@ RESULTADOS_DIR = BASE_DIR / "resultados"
 CSV_OPERACIONES = RESULTADOS_DIR / "fase4_modulith_operaciones.csv"
 CSV_RESUMEN = RESULTADOS_DIR / "fase4_modulith_resumen.csv"
 
+# E3, optimización c: sentencias preparadas. Cada consulta de la ruta se prepara una vez por
+# conexión (PREPARE) y luego se ejecuta con EXECUTE: PostgreSQL no vuelve a analizar ni planificar
+# el SQL en cada orden. preparar=False en los servicios = comportamiento del E2.
+_PREPARADAS = {}   # id(conexión) -> nombres ya preparados
+
+
+def preparar_sentencia(cursor, nombre, sql):
+    """Prepara `sql` (con marcadores %s) como `nombre` y devuelve el EXECUTE equivalente."""
+    n = sql.count("%s")
+    hechas = _PREPARADAS.setdefault(id(cursor.connection), set())
+    if nombre not in hechas:
+        cuerpo = sql.strip().rstrip(";")
+        for i in range(1, n + 1):
+            cuerpo = cuerpo.replace("%s", f"${i}", 1)
+        cursor.execute(f"PREPARE {nombre} AS {cuerpo}")
+        hechas.add(nombre)
+    return f"EXECUTE {nombre} ({', '.join(['%s'] * n)});"
+
+
 # =====================================================================
 # MÓDULOS DE DOMINIO (MONOLITO MODULAR)
 # =====================================================================
 class ProveedorService:
-    def __init__(self, cursor):
+    def __init__(self, cursor, preparar=True):
         self.cursor = cursor
         self._query_q1 = """
             SELECT c.contrato_id 
@@ -35,6 +54,8 @@ class ProveedorService:
               AND %s::timestamptz BETWEEN c.fecha_inicio AND c.fecha_fin
             LIMIT 1;
         """
+        if preparar:
+            self._query_q1 = preparar_sentencia(cursor, "e3_q1", self._query_q1)
 
     def validar_contrato_vigente(self, proveedor_id, fecha_evaluacion):
         self.cursor.execute(self._query_q1, (proveedor_id, fecha_evaluacion))
@@ -44,7 +65,7 @@ class ProveedorService:
 
 
 class CatalogoService:
-    def __init__(self, cursor):
+    def __init__(self, cursor, preparar=True):
         self.cursor = cursor
         self._query_q2 = """
             SELECT c.precio 
@@ -55,6 +76,8 @@ class CatalogoService:
               AND %s::timestamptz BETWEEN c.fecha_inicio AND c.fecha_fin
             LIMIT 1;
         """
+        if preparar:
+            self._query_q2 = preparar_sentencia(cursor, "e3_q2", self._query_q2)
 
     def validar_sku_y_obtener_precio(self, proveedor_id, sku_id, fecha_evaluacion):
         self.cursor.execute(self._query_q2, (proveedor_id, sku_id, fecha_evaluacion))
@@ -86,7 +109,7 @@ class LogisticaService:
             );
         """
 
-    def __init__(self, cursor, una_franja=True):
+    def __init__(self, cursor, una_franja=True, preparar=True):
         self.cursor = cursor
         # False = comportamiento del E2: el UPDATE suma una reserva en TODAS las franjas
         # disponibles del CEDI ese día.
@@ -100,6 +123,8 @@ class LogisticaService:
               AND estado = 'DISPONIBLE'
               AND reservas_actuales < capacidad;
         """
+        if preparar:
+            self._query_q3 = preparar_sentencia(cursor, "e3_q3_una" if una_franja else "e3_q3_todas", self._query_q3)
 
     def reservar_franja(self, cedi_id, fecha_entrega):
         fecha_dia = fecha_entrega.split(" ")[0]
@@ -111,7 +136,7 @@ class OrdenesService:
     # Estados que admite ordenes.orden_compra (CHECK chk_orden_estadoor de modelo-fisico.sql).
     ESTADOS_VALIDOS = frozenset({"PENDIENTE", "EN_VALIDACION", "CONFIRMADA", "RECHAZADA", "CANCELADA"})
 
-    def __init__(self, cursor, prov_svc, cat_svc, log_svc, validar_estado_primero=True):
+    def __init__(self, cursor, prov_svc, cat_svc, log_svc, validar_estado_primero=True, preparar=True):
         self.cursor = cursor
         self.prov_svc = prov_svc
         self.cat_svc = cat_svc
@@ -132,6 +157,9 @@ class OrdenesService:
                 orden_id, sku_id, categoria, cantidad_solicitada, cantidad_recibida, precio_unitario
             ) VALUES (%s, %s, %s, %s, %s, %s);
         """
+        if preparar:
+            self._insert_orden = preparar_sentencia(cursor, "e3_insert_orden", self._insert_orden)
+            self._insert_linea = preparar_sentencia(cursor, "e3_insert_linea", self._insert_linea)
 
     def crear_orden_transaccional(self, dto):
         ord_id, prov_id, cedi_id, f_crea, f_ent, f_rec, estado, total = dto
