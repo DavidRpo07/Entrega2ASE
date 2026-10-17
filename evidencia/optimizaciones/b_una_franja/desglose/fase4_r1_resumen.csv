@@ -1,0 +1,2 @@
+ordenes_intentadas,exitosas,rechazadas,duracion_s,throughput_req_s,medido_en_utc
+5000,1523,3477,1.619789,940.245751,2026-10-17T03:50:41.705199+00:00

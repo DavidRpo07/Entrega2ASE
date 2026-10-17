@@ -67,9 +67,31 @@ class CatalogoService:
 
 
 class LogisticaService:
-    def __init__(self, cursor):
+    # E3, optimización 1: reserva UNA franja (la primera del día con cupo). Las franjas que otra
+    # transacción tiene bloqueadas se saltan (SKIP LOCKED) en vez de esperarlas.
+    _query_q3_una_franja = """
+            UPDATE logistica.franja_descargue
+            SET reservas_actuales = reservas_actuales + 1,
+                estado = CASE WHEN reservas_actuales + 1 >= capacidad THEN 'COMPLETA' ELSE estado END
+            WHERE franja_id = (
+                SELECT franja_id
+                FROM logistica.franja_descargue
+                WHERE cedi_id = %s
+                  AND fecha = %s::date
+                  AND estado = 'DISPONIBLE'
+                  AND reservas_actuales < capacidad
+                ORDER BY hora_inicio
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            );
+        """
+
+    def __init__(self, cursor, una_franja=True):
         self.cursor = cursor
-        self._query_q3 = """
+        # False = comportamiento del E2: el UPDATE suma una reserva en TODAS las franjas
+        # disponibles del CEDI ese día.
+        self.una_franja = una_franja
+        self._query_q3 = self._query_q3_una_franja if una_franja else """
             UPDATE logistica.franja_descargue
             SET reservas_actuales = reservas_actuales + 1,
                 estado = CASE WHEN reservas_actuales + 1 >= capacidad THEN 'COMPLETA' ELSE estado END

@@ -80,5 +80,5 @@ def modulith(cursor) -> OrdenesConFallas:
     # fallas (E2), para que sus repeticiones sean comparables: las optimizaciones del E3 sobre
     # la ruta de la Fase 4 (evidencia/optimizaciones/) quedan desactivadas aquí.
     return OrdenesConFallas(cursor, ProveedorConFallas(cursor),
-                            CatalogoConFallas(cursor), LogisticaConFallas(cursor),
+                            CatalogoConFallas(cursor), LogisticaConFallas(cursor, una_franja=False),
                             validar_estado_primero=False)
