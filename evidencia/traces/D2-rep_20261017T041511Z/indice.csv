@@ -1,0 +1,12 @@
+grupo,trace_id,servicio,inicio_utc,duracion_ms,spans,jaeger
+baseline_muestra,1434b7d90ec3c3b484983debeda6bc5a,ordenes-api,2026-10-17T04:17:15.356+00:00,4.7,24,http://localhost:16686/trace/1434b7d90ec3c3b484983debeda6bc5a
+baseline_muestra,3ed01a45e7c1e1934fc3e907899c2485,ordenes-api,2026-10-17T04:17:14.962+00:00,5.7,24,http://localhost:16686/trace/3ed01a45e7c1e1934fc3e907899c2485
+baseline_muestra,4de24fe3a340aec9a8d55da2ab3f1cda,ordenes-api,2026-10-17T04:17:15.157+00:00,2.4,24,http://localhost:16686/trace/4de24fe3a340aec9a8d55da2ab3f1cda
+baseline_muestra,252663ad4bb1aa9844b51a9c1836d6be,ordenes-api,2026-10-17T04:17:15.457+00:00,4.4,24,http://localhost:16686/trace/252663ad4bb1aa9844b51a9c1836d6be
+baseline_muestra,44fe58ae0f31f8f2ed0633da7b38399b,ordenes-api,2026-10-17T04:17:15.257+00:00,8.7,528,http://localhost:16686/trace/44fe58ae0f31f8f2ed0633da7b38399b
+falla_worker_errores,44fe58ae0f31f8f2ed0633da7b38399b,outbox-worker,2026-10-17T04:17:15.257+00:00,8.7,528,http://localhost:16686/trace/44fe58ae0f31f8f2ed0633da7b38399b
+recuperacion_muestra,276759e5c14f7d9094f4fa04e2ba96eb,ordenes-api,2026-10-17T04:21:15.157+00:00,3.0,17,http://localhost:16686/trace/276759e5c14f7d9094f4fa04e2ba96eb
+recuperacion_muestra,1386d1b8ae42ca9132a0bd1ca7a15a97,ordenes-api,2026-10-17T04:21:15.207+00:00,3.7,17,http://localhost:16686/trace/1386d1b8ae42ca9132a0bd1ca7a15a97
+recuperacion_muestra,1dc7e7fdf9b1e92487b5d91828330ac2,ordenes-api,2026-10-17T04:21:15.259+00:00,4.1,17,http://localhost:16686/trace/1dc7e7fdf9b1e92487b5d91828330ac2
+recuperacion_muestra,4df48b5b8f74e5bb5d597a57c20d8d97,ordenes-api,2026-10-17T04:21:15.307+00:00,3.7,17,http://localhost:16686/trace/4df48b5b8f74e5bb5d597a57c20d8d97
+recuperacion_muestra,50a3b09f4a96112c5f732446ef091e3c,ordenes-api,2026-10-17T04:21:15.406+00:00,3.6,17,http://localhost:16686/trace/50a3b09f4a96112c5f732446ef091e3c
