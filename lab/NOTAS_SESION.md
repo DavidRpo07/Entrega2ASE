@@ -88,8 +88,8 @@ TRAZAS=off make lab-up           # experimento de overhead sin OpenTelemetry
   quedó inválida (`A2-corr-INVALIDA_20261017T003353Z`). Lecciones:
   - el backend de trazas crece con el tráfico y el tiempo, no con las fallas: sin retención, es en sí mismo
     un riesgo de disponibilidad que compite por memoria con el sistema observado;
-  - la caída de la observabilidad no tumbó el sistema (k6 terminó con 0 errores atribuibles a Jaeger: el
-    exportador OTLP descarta), pero sí la evidencia;
+  - la caída de Jaeger no detuvo el sistema (la API siguió atendiendo y k6 terminó la carga con código 0),
+    pero sí se perdió la evidencia; no se midió si la presión de memoria previa afectó las latencias;
   - estimación: ~40 KB por traza en memoria; una corrida son ~15.000 trazas (~600 MB).
   - **Límite nuevo** (`compose.yaml`): `MEMORY_MAX_TRACES=20000` (cubre la corrida en curso; descarta las
     más viejas) y `mem_limit: 1536m`. La memoria de Jaeger por corrida queda en
