@@ -81,6 +81,19 @@ TRAZAS=off make lab-up           # experimento de overhead sin OpenTelemetry
 
     Se probó congelando el runner 8 s con SIGSTOP. Si aborta, se repite una vez; si vuelve a abortar,
     hay que avisar al usuario.
+- **OOM de Jaeger (costo de la observabilidad; usar en el informe).** Jaeger `all-in-one` guarda las
+  trazas en memoria y venía **sin límite**. Tras 6,5 h encendido (fase 3 completa, smoke tests y A1-corr)
+  ocupaba ~6,4 GB al empezar A1-corr y ~6,8 GB de los 7,75 GiB de la VM de Docker. La VM lo mató por OOM
+  (`OOMKilled=true`, código 137) el 2026-10-17 a las 00:41:14 UTC, en plena falla de A2-corr: la corrida
+  quedó inválida (`A2-corr-INVALIDA_20261017T003353Z`). Lecciones:
+  - el backend de trazas crece con el tráfico y el tiempo, no con las fallas: sin retención, es en sí mismo
+    un riesgo de disponibilidad que compite por memoria con el sistema observado;
+  - la caída de la observabilidad no tumbó el sistema (k6 terminó con 0 errores atribuibles a Jaeger: el
+    exportador OTLP descarta), pero sí la evidencia;
+  - estimación: ~40 KB por traza en memoria; una corrida son ~15.000 trazas (~600 MB).
+  - **Límite nuevo** (`compose.yaml`): `MEMORY_MAX_TRACES=20000` (cubre la corrida en curso; descarta las
+    más viejas) y `mem_limit: 1536m`. La memoria de Jaeger por corrida queda en
+    `metrics/<RUN>/prometheus/memoria_por_contenedor_bytes.csv` (`servicio=jaeger`).
 - **Kill switch por archivo.** El runner no depende de la API, que en B1 está saturada: escribe
   `kill_switch: true` en `faults.yaml` **desde dentro de `fallas-ext`** con `docker compose exec`,
   bajo lock y con reemplazo atómico, y en paralelo manda el `DELETE /admin/faults`.
@@ -117,6 +130,13 @@ TRAZAS=off make lab-up           # experimento de overhead sin OpenTelemetry
 | `C2_20261016T230717Z` | ✅ válida | |
 | `D1_20261016T232015Z` | ✅ válida | Un intento anterior no llegó a arrancar por YAML inválido en la definición; no dejó evidencia |
 | `D2_20261016T233309Z` | ✅ válida | Hay que leerla con el hallazgo de abajo |
+
+Fase 4 (correcciones, `CORRECCION=on`):
+
+| Corrida | Estado | Motivo |
+| --- | --- | --- |
+| `A1-corr_20261017T002059Z` | ✅ válida | |
+| `A2-corr-INVALIDA_20261017T003353Z` | ❌ inválida | OOM de Jaeger (sin límite de memoria) a las 00:41:14, en plena falla; el runner no pudo leer las trazas y no escribió el resumen |
 
 Las notas de invalidez están al inicio del `resumen.md` de cada corrida inválida. Una carpeta renombrada
 conserva dentro el id original.
