@@ -1,0 +1,227 @@
+{
+  "generado_utc": "2026-10-17T03:42:26+00:00",
+  "comando": "make momento1",
+  "referencia_e2": {
+    "fuente": "reportefinalase.docx (Informe Técnico Entregable 2)",
+    "archivo": "lab/momento1/referencia_e2.yaml"
+  },
+  "semilla": 42,
+  "generador": {
+    "script": "datos/generar_datos.py --seed 42",
+    "parametros": {
+      "SEED": 42,
+      "NUM_PROVEEDORES": 100000,
+      "NUM_CONTRATOS": 15000,
+      "PORCENTAJE_PROVEEDORES_CON_CONTRATO": 0.12,
+      "NUM_SKUS": 400000,
+      "NUM_ORDENES": 500000,
+      "NUM_LINEAS": 3000000,
+      "NUM_FRANJAS": 150000,
+      "NUM_AUDITORIAS": 800000,
+      "ZIPF_S": 0.7,
+      "FECHA_INICIO": "2025-01-01 00:00:00+00:00",
+      "FECHA_FIN": "2026-12-31 23:59:59+00:00",
+      "FECHA_REFERENCIA": "2026-09-16 00:00:00+00:00"
+    }
+  },
+  "checksum": {
+    "sha256_11_csv": "1d7c2b2fb74a9ae75ba84f435580a5e805a80c524af9290fa178ce0e35d5657b",
+    "e2_informe": "1d7c2b2fb74a9ae75ba84f435580a5e805a80c524af9290fa178ce0e35d5657b",
+    "coincide": true,
+    "archivos": [
+      "catalogo_negociado.csv",
+      "cedi.csv",
+      "contrato_suministro.csv",
+      "evento_auditoria.csv",
+      "franja_descargue.csv",
+      "linea_orden.csv",
+      "orden_compra.csv",
+      "ordenes_50k.csv",
+      "ordenes_fase4_5k.csv",
+      "proveedor.csv",
+      "sku.csv"
+    ],
+    "metodo": "sha256 de datos/csv/*.csv concatenados en orden alfabético (datos/verificar_datos.py)"
+  },
+  "archivos_csv": {
+    "catalogo_negociado.csv": {
+      "sha256": "16e9bc0de65cfd95263e85a9fd8d96eb8cd84905d36829a128fa7783b1f476cb",
+      "filas": 399997,
+      "bytes": 34335866
+    },
+    "cedi.csv": {
+      "sha256": "055f9cabc0d458890085aba6ae66e0da74b64a7c0c4e217dce8ecb805dd614b3",
+      "filas": 5,
+      "bytes": 210
+    },
+    "contrato_suministro.csv": {
+      "sha256": "cdf55d1da0969f5a890725396c109d61419e66cc25ad075e3bbec68b8a85e442",
+      "filas": 15000,
+      "bytes": 1381840
+    },
+    "evento_auditoria.csv": {
+      "sha256": "89cb32e5dcd3109e26bbc776eaf78b1a90cb07c4ac18809a71d99f1cac931a36",
+      "filas": 800000,
+      "bytes": 107518897
+    },
+    "franja_descargue.csv": {
+      "sha256": "c69a9c963839063ff01d9dd3bfb906e2283f4ac4baa8851f1cea9815f8342361",
+      "filas": 127750,
+      "bytes": 6820560
+    },
+    "linea_orden.csv": {
+      "sha256": "79932458a4dbb5eb3b67a4ac99eb0a4fd9c3d679455cf9424080f15921c971a7",
+      "filas": 2036384,
+      "bytes": 89899478
+    },
+    "orden_compra.csv": {
+      "sha256": "531dac8e01e4cc781b1eb83bb8e98207dff81ed215681c6ce2bb57e3bb62a96a",
+      "filas": 500000,
+      "bytes": 51621202
+    },
+    "ordenes_50k.csv": {
+      "sha256": "c489cf6141071024eb6234e116fffeee589de7e4915a17b80354dac134ba904b",
+      "filas": 50000,
+      "bytes": 5287594
+    },
+    "ordenes_fase4_5k.csv": {
+      "sha256": "a65136064cc2df0c7b990e07e51bbc729a7b05f33f3c7c6aa6cd4e7fdfa23ffd",
+      "filas": 5000,
+      "bytes": 500372
+    },
+    "proveedor.csv": {
+      "sha256": "4f8f12c78e3cbb06c2b86d42d271a569f44e63f506246dfa2f6aa763f7326e07",
+      "filas": 100000,
+      "bytes": 10013120
+    },
+    "sku.csv": {
+      "sha256": "c8b4415e336baa6b38703c6c93cc5eec380b84b9b4a3f57faf837a7f94778b13",
+      "filas": 400000,
+      "bytes": 37260679
+    }
+  },
+  "entidades": {
+    "proveedores.proveedor": {
+      "e2_informe": 100000,
+      "csv": 100000,
+      "bd_canonicas": 100000,
+      "bd_total": 100000,
+      "coincide": true
+    },
+    "proveedores.contrato_suministro": {
+      "e2_informe": 15000,
+      "csv": 15000,
+      "bd_canonicas": 15000,
+      "bd_total": 15000,
+      "coincide": true
+    },
+    "catalogo.sku": {
+      "e2_informe": 400000,
+      "csv": 400000,
+      "bd_canonicas": 400000,
+      "bd_total": 400000,
+      "coincide": true
+    },
+    "catalogo.catalogo_negociado": {
+      "e2_informe": 399997,
+      "csv": 399997,
+      "bd_canonicas": 399997,
+      "bd_total": 399997,
+      "coincide": true
+    },
+    "logistica.cedi": {
+      "e2_informe": 5,
+      "csv": 5,
+      "bd_canonicas": 5,
+      "bd_total": 5,
+      "coincide": true
+    },
+    "logistica.franja_descargue": {
+      "e2_informe": 127750,
+      "csv": 127750,
+      "bd_canonicas": 127750,
+      "bd_total": 127750,
+      "coincide": true
+    },
+    "ordenes.orden_compra": {
+      "e2_informe": 500000,
+      "csv": 500000,
+      "bd_canonicas": 500000,
+      "bd_total": 500000,
+      "coincide": true
+    },
+    "ordenes.linea_orden": {
+      "e2_informe": 2036384,
+      "csv": 2036384,
+      "bd_canonicas": 2036384,
+      "bd_total": 2036384,
+      "coincide": true
+    },
+    "auditoria.evento_auditoria": {
+      "e2_informe": 800000,
+      "csv": 800000,
+      "bd_canonicas": 800000,
+      "bd_total": 800000,
+      "coincide": true
+    }
+  },
+  "total_filas": {
+    "e2_informe": 4379136,
+    "bd_canonicas": 4379136
+  },
+  "bd": {
+    "franjas": {
+      "reservas_actuales_total": 466687,
+      "completas": 10001
+    },
+    "postgres": {
+      "version": "PostgreSQL 15.19 (Debian 15.19-1.pgdg13+2) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+      "ajustes": {
+        "autovacuum": "on",
+        "effective_cache_size": "5242888kB",
+        "fsync": "on",
+        "jit": "on",
+        "max_connections": "100",
+        "max_wal_size": "1024MB",
+        "random_page_cost": "4",
+        "server_version": "15.19 (Debian 15.19-1.pgdg13+2)",
+        "shared_buffers": "163848kB",
+        "synchronous_commit": "on",
+        "wal_level": "replica",
+        "work_mem": "4096kB"
+      }
+    },
+    "indices_secundarios": [
+      "catalogo.idx_catalogo_proveedor_sku_vigencia",
+      "logistica.idx_franja_cedi_fecha_estado",
+      "ordenes.idx_outbox_pendientes",
+      "proveedores.idx_contrato_proveedor_vigencia"
+    ],
+    "filas_agregadas": {
+      "ordenes.orden_compra": {
+        "fase4_e2": 0,
+        "lab_api": 0
+      },
+      "ordenes.linea_orden": {
+        "fase4_e2": 0,
+        "lab_api": 0
+      }
+    }
+  },
+  "reproducir": [
+    "make datos   # o, sin regenerar los CSV versionados: make cargar",
+    "make momento1",
+    "make linea-base"
+  ],
+  "git": {
+    "commit": "b84ce159c9699cf2117e72216961485b1e7213dc",
+    "rama": "main",
+    "cambios_sin_commit_en_datos": "M datos/cargar_datos.sh"
+  },
+  "entorno": {
+    "python": "3.14.7",
+    "so": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "docker": "29.4.2"
+  },
+  "problemas": []
+}

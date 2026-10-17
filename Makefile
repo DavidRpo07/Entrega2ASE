@@ -1,6 +1,6 @@
 .PHONY: datos db-up db-down db-reset cargar verificar estrategias fase4 modulith medir limpiar-resultados test-lab \
 	lab-up lab-down lab-ps lab-logs lab-smoke lab-carga-datos lab-reset lab-carga \
-	experimento experimento-prueba limpiar-pruebas figuras
+	experimento experimento-prueba limpiar-pruebas figuras momento1 linea-base
 
 # Flujo obligatorio del entregable: genera → carga → verifica.
 datos: db-up
@@ -139,6 +139,18 @@ experimento-prueba:
 
 limpiar-pruebas:
 	@rm -rf evidencia/*/PRUEBA-*
+
+# Momento 1 (E3): manifest del punto de partida derivado del E2 (volumen, semilla, checksum,
+# Postgres, commit). No modifica la base. → evidencia/momento1/manifest.json
+momento1: db-up
+	@$(PY) lab/momento1/manifest.py
+
+# Línea base E3 con las mismas cargas del E2: baja el lab, recarga la base desde datos/csv,
+# mide Q1–Q5 (secuencia de `make medir`) y la Fase 4 (mismas 5.000 órdenes) y arma la tabla
+# E2 vs. E3 vs. objetivo. Evidencia en evidencia/linea_base/<UTC>/ (no toca datos/resultados/).
+linea-base: db-up
+	@docker compose rm -sf $(LAB_SERVICIOS)
+	@$(CAFEINA) $(PY) lab/momento1/linea_base.py todo --recargar
 
 # Figuras del informe desde la evidencia guardada (requiere matplotlib): evidencia/figuras/<ID>.png
 figuras:

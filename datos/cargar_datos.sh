@@ -5,7 +5,7 @@ DB_USER="${DB_USER:-postgres}"
 DB_NAME="${DB_NAME:-escalables}"
 CONTAINER_NAME="postgres-escalables"
 CSV_DIR="datos/csv"
-RESULTADOS_DIR="datos/resultados"
+RESULTADOS_DIR="${RESULTADOS_DIR:-datos/resultados}"   # make linea-base lo redirige a evidencia/linea_base/
 REPORTE_CARGA="$RESULTADOS_DIR/carga.csv"
 
 PSQL_CMD="docker exec -i $CONTAINER_NAME psql -U $DB_USER -d $DB_NAME"

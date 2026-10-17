@@ -1,0 +1,78 @@
+# Valores de referencia del Entregable 2, transcritos del INFORME final (reportefinalase.docx).
+# El informe es la referencia (no los CSV de datos/resultados/). Las diferencias entre ambos
+# están en `diferencias_csv` y las calcula/explica lab/momento1/linea_base.py (tabla).
+#
+# Método de percentil: los CSV crudos del E2 (datos/resultados/q*_*.csv, 100 ejecuciones por
+# escenario) son las MISMAS mediciones del informe. El informe usó dos métodos distintos:
+#   - Q1: statistics.quantiles(n=100) "exclusive" (el que imprimen datos/medir_q*.py);
+#   - Q2–Q5: "inclusive" (= numpy.percentile lineal).
+# La línea base E3 se calcula con el método que reproduce cada valor del informe, y además con
+# el otro, para que la comparación sea siempre "misma consulta, escenario, métrica y método".
+fuente: reportefinalase.docx (Informe Técnico Entregable 2)
+checksum_sha256: 1d7c2b2fb74a9ae75ba84f435580a5e805a80c524af9290fa178ce0e35d5657b   # 11 CSV de datos/csv, semilla 42
+semilla: 42
+
+filas:   # sección 2.1 (tiempos de carga) y verificar.py del informe
+  proveedores.proveedor: 100000
+  proveedores.contrato_suministro: 15000
+  catalogo.sku: 400000
+  catalogo.catalogo_negociado: 399997
+  logistica.cedi: 5
+  logistica.franja_descargue: 127750
+  ordenes.orden_compra: 500000
+  ordenes.linea_orden: 2036384
+  auditoria.evento_auditoria: 800000
+  total: 4379136
+
+carga:   # sección 2.2
+  copy_total_ms: 12658
+  total_ingesta_ms: 15826
+
+consultas:   # sección 4; ms; 100 ejecuciones por escenario
+  # id: {escenario: {p50, p95, p99}}, metodo según la nota de arriba
+  Q1:
+    metodo: exclusive
+    fase: base
+    caliente: {p50: 0.161, p95: 0.217, p99: 0.386}
+    frio: {p50: 0.177, p95: 0.252, p99: 3.575}
+  Q2:
+    metodo: inclusive
+    fase: base
+    caliente: {p50: 0.312, p95: 1.970, p99: 10.389}
+    frio: {p50: 0.226, p95: 0.944, p99: 1.605}
+  Q3:
+    metodo: inclusive
+    fase: base
+    caliente: {p50: 0.181, p95: 0.336, p99: 0.927}
+    frio: {p50: 0.167, p95: 0.249, p99: 0.464}
+  Q4_antes_indice:
+    metodo: inclusive
+    fase: antes_indice
+    caliente: {p50: 36.413, p95: 40.786, p99: 74.687}
+    frio: {p50: 34.217, p95: 35.410, p99: 39.323}
+  Q4:
+    metodo: inclusive
+    fase: despues_indice
+    caliente: {p50: 2.839, p95: 9.334, p99: 14.481}
+    frio: {p50: 0.358, p95: 0.419, p99: 0.435}
+  Q5_antes_indice:
+    metodo: inclusive
+    fase: antes_indice
+    caliente: {p50: 6.994, p95: 8.188, p99: 9.346}
+    frio: {p50: 6.901, p95: 8.213, p99: 10.279}
+  Q5:
+    metodo: inclusive
+    fase: despues_indice
+    caliente: {p50: 0.250, p95: 0.327, p99: 0.374}
+    frio: {p50: 0.156, p95: 0.181, p99: 0.191}
+
+fase4:   # sección 3.2: 5.000 órdenes de datos/csv/ordenes_fase4_5k.csv por la ruta del modulith
+  ordenes: 5000
+  exitosas: 1523
+  rechazadas: 3477
+  duracion_s: 3.6815
+  throughput_req_s: 413.69   # = exitosas / duración (criterio de datos/ejecutar_fase4_modulith.py)
+  costo_medio_ms: 0.736      # = duración / 5000
+
+diferencias_csv:
+  fase4: "datos/resultados/fase4_modulith_resumen.csv: 1523 exitosas en 4.053644 s = 375.711327 req/s (2026-09-21T19:34:31Z); el informe reporta otra corrida (3.6815 s = 413.69 req/s)"

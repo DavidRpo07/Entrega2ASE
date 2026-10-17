@@ -1,0 +1,47 @@
+{
+  "etiqueta": "b_franjas_restauradas",
+  "medido_utc": "2026-10-17T03:40:04+00:00",
+  "csv_ordenes": "datos/csv/ordenes_fase4_5k.csv",
+  "restaurar_franjas": true,
+  "franjas_restauradas": 104623,
+  "desglose": true,
+  "ordenes": 5000,
+  "exitosas": 1523,
+  "rechazadas": 3477,
+  "motivos": {
+    "ok": 1523,
+    "check_estado_orden": 2988,
+    "sin_contrato_vigente": 489
+  },
+  "duracion_s": 5.248013,
+  "throughput_req_s": 290.21,
+  "costo_medio_ms": 1.0496,
+  "latencia_orden_ms": {
+    "p50": 0.96,
+    "p95": 1.736,
+    "p99": 2.696
+  },
+  "estado_antes": {
+    "reservas_actuales_total": 466687,
+    "franjas_completas": 10001,
+    "franjas_disponibles_sep_2_14": 2126,
+    "franja_tuplas_vivas": 127750,
+    "franja_tuplas_muertas": 0,
+    "orden_compra_filas": 501523
+  },
+  "estado_despues": {
+    "reservas_actuales_total": 474959,
+    "franjas_completas": 11535,
+    "franjas_disponibles_sep_2_14": 592,
+    "franja_tuplas_vivas": 127750,
+    "franja_tuplas_muertas": 6258,
+    "orden_compra_filas": 501523
+  },
+  "desglose_medias_ms": {
+    "q1_ms": 0.3101,
+    "q2_ms": 0.165,
+    "q3_ms": 0.1861,
+    "crear_ms": 0.8492
+  },
+  "filas_q3_media": 5.41
+}
