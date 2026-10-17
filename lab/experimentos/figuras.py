@@ -46,6 +46,9 @@ CORRIDAS = {
 }
 CON_LAG = {"C2", "D2"}
 COLORES = ["#c0392b", "#2471a3"]
+# La segunda serie va discontinua y algo transparente: si coincide con la primera (p. ej. 0 % de errores
+# o el mismo lag en D2), ambas se siguen viendo.
+TRAZOS = [{"ls": "-", "alpha": 1.0}, {"ls": (0, (5, 3)), "alpha": 0.85}]
 BIN_S, VENTANA_S = 10, 60
 LEYENDA = {"fontsize": 8, "loc": "upper left", "bbox_to_anchor": (1.01, 1), "borderaxespad": 0}
 
@@ -121,14 +124,17 @@ def figura(exp_id, slo):
         sombrear(ax, ref)
         ax.grid(alpha=0.3)
     ax_lat, ax_err = axs[0], axs[1]
-    for i, (run, etiqueta, c) in enumerate(datos):
-        s, col = series(c), COLORES[i % len(COLORES)]
+    calculadas = [series(c) for _, _, c in datos]
+    # Serie de errores en 0 en toda la corrida: línea más gruesa (si no, queda pegada al eje).
+    en_cero = [bool(np.nanmax(s["err"], initial=0) == 0) for s in calculadas]
+    for i, ((run, etiqueta, c), s) in enumerate(zip(datos, calculadas)):
+        col, trazo = COLORES[i % len(COLORES)], TRAZOS[i % len(TRAZOS)]
         nombre = etiqueta if len(datos) > 1 else run
-        ax_lat.plot(s["x"], s["p95"], color=col, lw=1.6, label=f"p95 · {nombre}")
-        ax_lat.plot(s["x"], s["p99"], color=col, lw=1.0, ls=":", label=f"p99 · {nombre}")
-        ax_err.plot(s["x_err"], s["err"], color=col, lw=1.6, label=nombre)
+        ax_lat.plot(s["x"], s["p95"], color=col, lw=1.6, alpha=trazo["alpha"], label=f"p95 · {nombre}")
+        ax_lat.plot(s["x"], s["p99"], color=col, lw=1.0, ls=":", alpha=trazo["alpha"], label=f"p99 · {nombre}")
+        ax_err.plot(s["x_err"], s["err"], color=col, lw=3.0 if en_cero[i] else 1.6, **trazo, label=nombre)
         if exp_id in CON_LAG and len(s["lag"]):
-            axs[2].plot(s["lag"][:, 0], s["lag"][:, 1], color=col, lw=1.6, label=nombre)
+            axs[2].plot(s["lag"][:, 0], s["lag"][:, 1], color=col, lw=1.6, **trazo, label=nombre)
     ax_lat.axhline(slo["p95_post_ms"], color="#e67e22", ls="--", lw=1, label=f"SLO p95 {slo['p95_post_ms']} ms")
     ax_lat.axhline(slo["p99_post_ms"], color="#8e44ad", ls="--", lw=1, label=f"SLO p99 {slo['p99_post_ms']} ms")
     ax_lat.set_yscale("log")
@@ -136,7 +142,23 @@ def figura(exp_id, slo):
     ax_lat.legend(**LEYENDA)
     ax_err.axhline(slo["errores_pct"], color="#e67e22", ls="--", lw=1, label=f"SLO {slo['errores_pct']:g} %")
     ax_err.set_ylabel(f"% errores (ventana {VENTANA_S} s)")
-    ax_err.set_ylim(bottom=0)
+    if any(en_cero):
+        tope = max([slo["errores_pct"]] + [np.nanmax(s["err"]) for s in calculadas]) * 1.1
+        ax_err.set_ylim(-0.05 * tope, tope)   # la línea en 0 queda separada del eje
+        quienes = [e for (_, e, _), z in zip(datos, en_cero) if z]
+        if len(datos) == 1:
+            texto = "0 % de errores en toda la corrida"
+        elif all(en_cero):
+            texto = f"0 % de errores en toda la corrida ({' y '.join(e.split(' (')[0] for e in quienes)})"
+        else:
+            texto = "; ".join(f"{e.split(' (')[0]}: 0 % de errores en toda la corrida" for e in quienes)
+        # Todo en 0: centrado. Si alguna serie tiene errores, arriba a la izquierda (sobre el baseline,
+        # que no tiene errores) para no taparla.
+        x, y, ha, va = (0.5, 0.5, "center", "center") if all(en_cero) else (0.02, 0.94, "left", "top")
+        ax_err.text(x, y, texto, transform=ax_err.transAxes, ha=ha, va=va, fontsize=11,
+                    color="#333", bbox={"boxstyle": "round,pad=0.4", "fc": "white", "ec": "#bbb", "alpha": 0.9})
+    else:
+        ax_err.set_ylim(bottom=0)
     ax_err.legend(**LEYENDA)
     if exp_id in CON_LAG:
         axs[2].axhline(slo["lag_outbox_s"], color="#e67e22", ls="--", lw=1, label=f"SLO {slo['lag_outbox_s']} s")
