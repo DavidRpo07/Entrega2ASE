@@ -31,6 +31,9 @@ services:
       FAULTS_FILE: /lab-runtime/faults.yaml
       FAULTS_RECARGA_S: "0.25"
       CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
+      CORRECCIONES_FILE: /lab-runtime/correcciones.yaml   # fase 4: correcciones en caliente
+      CORRECCIONES_RECARGA_S: "0.25"
+      CORRECCIONES_BASE: /app/lab/correcciones.yaml
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       TRAZAS: ${TRAZAS:-on}          # TRAZAS=off make lab-up → experimento de overhead
     volumes:
@@ -80,6 +83,9 @@ services:
       FAULTS_FILE: /lab-runtime/faults.yaml
       FAULTS_RECARGA_S: "0.25"
       CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
+      CORRECCIONES_FILE: /lab-runtime/correcciones.yaml   # fase 4: correcciones en caliente
+      CORRECCIONES_RECARGA_S: "0.25"
+      CORRECCIONES_BASE: /app/lab/correcciones.yaml
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       TRAZAS: ${TRAZAS:-on}
     volumes:
@@ -105,6 +111,9 @@ services:
       FAULTS_FILE: /lab-runtime/faults.yaml
       FAULTS_RECARGA_S: "0.25"
       CATALOGO_FALLAS: /app/lab/fallas/catalogo.yaml
+      CORRECCIONES_FILE: /lab-runtime/correcciones.yaml   # fase 4: correcciones en caliente
+      CORRECCIONES_RECARGA_S: "0.25"
+      CORRECCIONES_BASE: /app/lab/correcciones.yaml
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       TRAZAS: ${TRAZAS:-on}
       METRICS_PORT: "9100"

@@ -1,0 +1,11 @@
+# Experimento O1 — Overhead de observabilidad: misma carga (semilla 42, 20 req/s) SIN falla,
+# una corrida con trazas y otra sin ellas. `falla: null`: el runner no activa nada y las tres
+# fases (baseline / "falla" / recuperación) son solo marcas de tiempo sobre la misma carga.
+#   make lab-up            && make experimento ID=O1   → O1-trazas-on_<UTC>
+#   TRAZAS=off make lab-up && make experimento ID=O1   → O1-trazas-off_<UTC>
+#   make lab-up                                         (restaura las trazas)
+# El runner toma el estado de la métrica trazas_activas (igual en todos los procesos).
+id: O1
+familia: observabilidad
+falla: null
+descripcion: Overhead de observabilidad, trazas OpenTelemetry encendidas vs. TRAZAS=off, misma carga sin falla

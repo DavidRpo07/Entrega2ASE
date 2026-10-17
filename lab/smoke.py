@@ -4,10 +4,12 @@
 Solo usa la librería estándar. Verifica: balanceo entre réplicas, POST /ordenes
 con outbox → worker → ext-sap, endpoints de lectura, y que las fallas A1, B1,
 C1, C2 y D2 se activan por /admin/faults en todos los procesos y se apagan con
-el kill switch.
+el kill switch. Sección [12]: las correcciones de la fase 4 (lab/correcciones.yaml)
+se encienden y apagan en caliente y hacen su efecto.
 """
 import json
 import os
+import random
 import subprocess
 import sys
 import time
@@ -19,10 +21,10 @@ BASE = os.environ.get("LAB_URL", "http://localhost:8080")
 fallos: list[str] = []
 
 
-def http(metodo, ruta, cuerpo=None, timeout=60):
+def http(metodo, ruta, cuerpo=None, timeout=60, cabeceras=None):
     datos = json.dumps(cuerpo).encode() if cuerpo is not None else None
     req = urllib.request.Request(BASE + ruta, data=datos, method=metodo,
-                                 headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json", **(cabeceras or {})})
     t0 = time.perf_counter()
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -194,6 +196,12 @@ def main():
 
     observabilidad(provs)
 
+    try:
+        correcciones(provs)
+    finally:
+        http("PUT", "/admin/correcciones", {"activas": []})
+        http("DELETE", "/admin/faults")
+
     print("\nRESULTADO:", "OK" if not fallos else f"{len(fallos)} fallo(s)")
     for f in fallos:
         print("  -", f)
@@ -324,6 +332,136 @@ def observabilidad(provs):
 
     tablero = get_json(GRAFANA + "/api/search?query=Laboratorio")
     check(any(d.get("uid") == "lab-entregable3" for d in tablero), "Grafana: dashboard 'Laboratorio de fallas' provisionado")
+
+
+def poner_correcciones(activas, corrida="smoke"):
+    c, r, _, _ = http("PUT", "/admin/correcciones", {"activas": activas, "corrida": f"{corrida}-{time.time():.3f}"})
+    check(c == 200 and r.get("activas") == activas, f"PUT /admin/correcciones {activas} -> {c}")
+
+    def vista():
+        filas = prom('correccion_activa{job=~"api|worker"}')
+        procesos = {x["metric"].get("instancia") for x in filas}
+        return {"api-1", "api-2", "worker"} <= procesos and all(
+            float(x["value"][1]) == (1.0 if x["metric"]["correccion"] in activas else 0.0) for x in filas)
+    check(bool(esperar(vista, 20, 1)), f"Prometheus: correccion_activa = {activas or 'ninguna'} en api-1, api-2 y worker")
+
+
+def breakers_en_replicas():
+    vistos = {}
+    for _ in range(12):
+        _, r, inst, _ = http("GET", "/admin/correcciones")
+        vistos[inst] = r["breakers"].get("catalogo")
+    return vistos
+
+
+def afectada(falla_id, clave, prob, semilla=42):
+    """Misma decisión que el inyector (lab/fallas/inyector.py: _sorteo con sal "p")."""
+    return random.Random(f"{semilla}|{falla_id}|{clave}|p").random() < prob
+
+
+def muertos(orden_ids):
+    lista = ",".join(str(i) for i in orden_ids)
+    return int(psql(f"SELECT count(*) FROM ordenes.outbox_muerto WHERE aggregate_id IN ({lista})")[0])
+
+
+def publicados(orden_ids):
+    lista = ",".join(str(i) for i in orden_ids)
+    return int(psql(f"SELECT count(*) FROM ordenes.outbox_evento WHERE publicado AND aggregate_id IN ({lista})")[0])
+
+
+def correcciones(provs):
+    p = provs[0]
+    precio = lambda sku=101: http("GET", f"/catalogo/precio?proveedor_id={p}&sku_id={sku}")
+
+    print("\n[12] Correcciones (fase 4) en caliente")
+    kill_switch()
+    poner_correcciones([])
+    c, r, _, _ = http("PUT", "/admin/correcciones", {"activas": ["cache"]})
+    check(c == 422, f"corrección desconocida -> 422 ({c})")
+
+    print("\n[12a] catalogo: timeout 200 ms + breaker + último precio conocido")
+    poner_correcciones(["catalogo"])
+    for _ in range(6):                    # calienta la caché de precios en ambas réplicas
+        precio()
+    activar({"id": "A1", "probabilidad": 1.0, "duracion_s": 90})
+    res = [precio() for _ in range(6)]
+    check(all(x[0] == 200 for x in res) and max(x[3] for x in res) < 400,
+          f"con A1 (800 ms) el precio conocido sale en < 400 ms: {[(x[0], round(x[3])) for x in res]}")
+    c, r, _, ms = precio(sku=987654)
+    check(c == 503 and ms < 400 and isinstance(r, dict) and r.get("dependencia") == "catalogo",
+          f"SKU sin precio conocido -> 503 inmediato ({c}, {ms:.0f} ms)")
+    for _ in range(10):                   # >= 5 fallos seguidos por réplica abren el breaker
+        precio()
+    vistos = breakers_en_replicas()
+    check(vistos == {"api-1": "abierto", "api-2": "abierto"}, f"breaker de catálogo abierto en ambas réplicas: {vistos}")
+    lat = [precio()[3] for _ in range(4)]
+    check(max(lat) < 100, f"con el breaker abierto no se llama a Catálogo: {[round(x) for x in lat]} ms")
+    check(bool(esperar(lambda: prom('sum(catalogo_fallback_total{resultado="hit"}) > 0') and
+                       prom('max(circuit_breaker_estado{nombre="catalogo"}) == 2'), 15, 1)),
+          "Prometheus: catalogo_fallback_total y circuit_breaker_estado = 2")
+    kill_switch()
+    poner_correcciones([])
+    lat = [precio()[3] for _ in range(4)]
+    check(max(lat) < 400, f"corrección apagada: el precio vuelve al camino de siempre {[round(x) for x in lat]} ms")
+
+    print("\n[12b] bulkhead: lecturas aisladas de escrituras lentas, fail-fast 500 ms")
+    poner_correcciones(["bulkhead"])
+    activar({"id": "SMK", "tipo": "latencia_fija", "target": "logistica.reservar_franja", "ms_fijos": 2000,
+             "probabilidad": 1.0, "duracion_s": 60})
+    with ThreadPoolExecutor(40) as ex:
+        escrituras = [ex.submit(http, "POST", "/ordenes", {"proveedor_id": provs[i % len(provs)], "cedi_id": 3, "total": 5})
+                      for i in range(20)]
+        time.sleep(0.3)
+        lecturas = [ex.submit(http, "GET", f"/proveedores/{p}/ordenes") for _ in range(10)]
+        escrituras = [f.result() for f in escrituras]
+        lecturas = [f.result() for f in lecturas]
+    rechazos = [x for x in escrituras if x[0] == 503]
+    check(rechazos and all(x[3] < 1500 for x in rechazos) and any(x[0] == 201 for x in escrituras),
+          f"POST: {len(rechazos)}/20 con 503 fail-fast (máx {max((x[3] for x in rechazos), default=0):.0f} ms), resto 201")
+    check(all(x[0] == 200 for x in lecturas) and max(x[3] for x in lecturas) < 1000,
+          f"GET Q5 durante las escrituras lentas: {sorted({x[0] for x in lecturas})}, máx {max(x[3] for x in lecturas):.0f} ms")
+    pools = {x["metric"].get("pool") for x in prom('db_pool_max{job="api"}')}
+    check({"general", "lectura", "escritura"} <= pools, f"Prometheus: db_pool_* por pool {sorted(p_ for p_ in pools if p_)}")
+    kill_switch()
+
+    print("\n[12c] bulkhead: lock_timeout de 1 s frente a B2")
+    activar({"id": "B2", "duracion_s": 60, "parametros": {"cedi_id": 5, "retencion_s": 60, "ciclo_s": 120}})
+    time.sleep(1)
+    c, r, _, ms = http("POST", "/ordenes", {"proveedor_id": p, "cedi_id": 5, "total": 1})
+    check(c == 503 and 900 <= ms < 2500 and "lock_timeout" in str(r), f"POST al CEDI bloqueado -> {c} en {ms:.0f} ms (lock_timeout)")
+    kill_switch()
+    c, _, _, ms = http("POST", "/ordenes", {"proveedor_id": p, "cedi_id": 5, "total": 1})
+    check(c == 201, f"tras kill switch el CEDI 5 acepta órdenes ({c}, {ms:.0f} ms)")
+    poner_correcciones([])
+
+    print("\n[12d] worker: reintentos con backoff, mensajes muertos, sin head-of-line blocking")
+    poner_correcciones(["worker"])
+    claves = [f"smoke-{time.time():.0f}-{i}" for i in range(400)]
+    envenenada = next(k for k in claves if afectada("D2", k, 0.5))
+    sanas = [k for k in claves if not afectada("D2", k, 0.5)][:4]
+    activar({"id": "D2", "probabilidad": 0.5, "ms_fijos": 50, "duracion_s": 90})
+    ids = []
+    for k in [envenenada] + sanas:        # la envenenada queda a la cabeza del outbox
+        c, r, _, _ = http("POST", "/ordenes", {"proveedor_id": p, "cedi_id": 1, "total": 1}, cabeceras={"X-Clave-Carga": k})
+        ids.append(r["orden_id"])
+    check(bool(esperar(lambda: publicados(ids[1:]) == 4, 15)), f"las 4 órdenes sanas se publican detrás de la envenenada")
+    check(bool(esperar(lambda: muertos(ids[:1]) == 1, 15)), f"la envenenada (orden {ids[0]}) termina en outbox_muerto")
+    n = int(psql(f"SELECT intentos FROM ordenes.outbox_muerto WHERE aggregate_id = {ids[0]}")[0])
+    check(n == 3, f"intentos registrados del mensaje muerto: {n}")
+    check(bool(esperar(lambda: prom("sum(outbox_reintentos_total) > 0") and prom("max(outbox_mensajes_muertos) > 0"), 15, 1)),
+          "Prometheus: outbox_reintentos_total y outbox_mensajes_muertos")
+
+    print("\n[12e] worker: circuit breaker hacia ext-sap")
+    activar({"id": "D2", "probabilidad": 1.0, "ms_fijos": 50, "duracion_s": 90})
+    ids = [r[1]["orden_id"] for r in crear_ordenes(provs, 6) if r[0] == 201]
+    check(bool(esperar(lambda: prom('max(circuit_breaker_estado{nombre="ext_sap"}) == 2'), 20, 1)),
+          "breaker ext_sap abierto tras 5 fallos seguidos")
+    check(muertos(ids) < len(ids), f"con el breaker abierto no se gastan intentos: {muertos(ids)}/{len(ids)} muertos")
+    kill_switch()
+    poner_correcciones(["worker"], "smoke-reinicio")   # nueva corrida: breaker reiniciado
+    check(bool(esperar(lambda: publicados(ids) + muertos(ids) == len(ids) and pendientes() == 0, 20)),
+          "tras kill switch y reinicio del breaker el outbox se vacía")
+    poner_correcciones([])
 
 
 PROMETHEUS = os.environ.get("PROMETHEUS_URL", "http://localhost:9090")

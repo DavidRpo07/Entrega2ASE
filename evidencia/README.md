@@ -12,5 +12,10 @@ Cada corrida de `make experimento ID=<ID>` crea `<ID>_<UTC>` en cada carpeta:
 | `traces/<RUN>/` | trazas de Jaeger (`*.json.gz`, formato de su API; se abren en Jaeger UI → JSON File): muestra del baseline, las más lentas y las con error durante la falla, muestra de la recuperación; `indice.csv` |
 | `results/<RUN>/` | `resumen.md` / `resumen.json`: por fase, cumplimiento del SLO, tiempo de recuperación y tabla predicción vs. resultado (la completa el equipo) |
 
+Fase 4: `make experimento ID=<ID> CORRECCION=on` crea `<ID>-corr_<UTC>` (predicción `<ID>-corr.md`) con la
+misma falla y semilla que `<ID>_<UTC>`; el manifest guarda las correcciones aplicadas. El experimento de
+overhead O1 crea `O1-trazas-on_<UTC>` y `O1-trazas-off_<UTC>` (predicción `O1.md`). Cualquier corrida hecha con
+`TRAZAS=off` lleva `-trazas-off` en el nombre.
+
 Las corridas `PRUEBA-*` (`make experimento-prueba`) son ensayos del runner: git las ignora y
 `make limpiar-pruebas` las borra.

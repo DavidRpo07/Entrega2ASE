@@ -89,7 +89,7 @@ Notas:
   nada si ya expiró. Las fallas expiradas se podan del archivo en la siguiente escritura.
 - nginx escribe su access log en JSON (`status`, `upstream`, `upstream_status`,
   `upstream_response_time`, `instancia`, `trace_id`): evidencia de 502 cuando cae una réplica.
-- Sin correcciones todavía: el worker no reintenta con backoff ni tiene circuit breaker (fase 4).
+- Sin correcciones (por defecto) el worker no reintenta con backoff ni tiene circuit breaker: ver fase 4.
 
 ## Fase 2 — Observabilidad
 
@@ -201,3 +201,56 @@ make experimento-prueba ID=A1      # make limpiar-pruebas para borrarlos
   en que cada proceso relee `faults.yaml`; `FAULTS_RECARGA_S=0.25`).
 - Overhead de observabilidad: `TRAZAS=off make lab-up` y luego `make experimento …` (el manifest y
   la métrica `trazas_activas` registran el estado); `make lab-up` lo restaura.
+
+## Fase 4 — Correcciones y re-experimentación
+
+Cada corrección se enciende y apaga **en caliente** con `lab/runtime/correcciones.yaml` (plantilla:
+`lab/correcciones.yaml`, todo apagado; `make lab-up` la copia si falta). API, worker y fallas-ext lo
+releen cada 0,25 s (`lab/resiliencia/config.py`). Apagadas, el código hace lo mismo que en la fase 3.
+
+```bash
+make experimento ID=A1                    # antes: correcciones apagadas → A1_<UTC>
+make experimento ID=A1 CORRECCION=on      # después: misma falla, misma semilla → A1-corr_<UTC>
+curl -X PUT localhost:8080/admin/correcciones -H 'Content-Type: application/json' -d '{"activas":["catalogo"]}'
+curl localhost:8080/admin/correcciones    # estado de la réplica (config y breakers)
+curl -X PUT localhost:8080/admin/correcciones -H 'Content-Type: application/json' -d '{"activas":[]}'
+```
+
+| Corrección | Experimentos | Qué hace | Señales |
+| --- | --- | --- | --- |
+| `catalogo` | A1 | Timeout de 200 ms sobre `catalogo.validar_sku`; circuit breaker por réplica (abre tras 5 fallos seguidos, semiabierto a los 30 s con una sola llamada de prueba); fallback al último precio conocido de (proveedor, sku) en la réplica; sin precio → 503 inmediato | `circuit_breaker_estado{nombre="catalogo"}` (0/1/2), `circuit_breaker_transiciones_total`, `circuit_breaker_rechazos_total`, `catalogo_timeouts_total`, `catalogo_fallback_total{motivo,resultado}` |
+| `bulkhead` | A2, B1, B2 | Pools separados por réplica: `escritura` 3 (POST /ordenes) y `lectura` 2 (todos los GET), mismo total de 5; espera por conexión de 500 ms (fail-fast → 503); `lock_timeout` de 1 s en la transacción de POST /ordenes (reserva de franjas) → 503 | `db_pool_*{pool}`, `db_pool_timeouts_total{pool}`, `db_lock_timeouts_total` |
+| `worker` | D2 | Un evento que falla se reprograma (`proximo_intento`) con backoff 100 · 2^(n-1) ms + hasta 50 % de jitter determinista por `outbox_id`, y el lote **sigue** con los demás (sin *head-of-line blocking*); al 3.er fallo pasa a `ordenes.outbox_muerto`; breaker hacia ext-sap (5 fallos / 30 s): abierto, corta el lote sin gastar intentos | `outbox_reintentos_total`, `outbox_muertos_total`, `outbox_mensajes_muertos`, `outbox_breaker_diferidos_total`, `circuit_breaker_estado{nombre="ext_sap"}` |
+
+- **Runner** (`--correccion on|off`, `CORRECCION=on` en make): enciende solo las correcciones de
+  `experimentos.<ID>` en `lab/correcciones.yaml`, antes del `lab-reset` (el baseline ya corre corregido y
+  mide su costo); escribe el archivo desde `fallas-ext` (como el kill switch) con `corrida: <RUN>`, lo que
+  reinicia breakers y caché de precios en cada corrida; espera a ver `correccion_activa` en api-1, api-2 y
+  worker; y al terminar (también si aborta) las apaga. Exige `evidencia/predictions/<ID>-corr.md` en
+  `Estado: LISTA`. Manifest y resumen registran la configuración aplicada. `caffeinate` y el detector de
+  reposo funcionan igual.
+- **Timeout de Catálogo, cómo funciona**: la latencia de A1 la inyecta un `sleep` en el mismo hilo y con
+  el cursor de la transacción, así que el timeout es un *deadline* cooperativo (`INYECTOR.plazo(ms)`): una
+  latencia inyectada que no cabe en el plazo duerme solo hasta el plazo y lanza `PlazoAgotado`. Equivale
+  a un cliente que deja de esperar a una dependencia remota. No corta una consulta SQL ya lanzada.
+- **Caché de precios**: por réplica y en memoria; ignora la fecha (es el "último conocido"). Se llena
+  solo con la corrección encendida; POST /ordenes siempre consulta el SKU 101.
+- **Esquema**: `intentos`, `proximo_intento` en `ordenes.outbox_evento` y la tabla `ordenes.outbox_muerto`
+  los crean la API y el worker al arrancar y `make lab-reset` (idempotente, sin `ALTER` si ya existen).
+  `lab-reset` borra los muertos de la API y los reintentos pendientes.
+- **Límites conocidos**: el bulkhead separa conexiones, no los 40 hilos de uvicorn (en B1 la fila de
+  hilos sigue existiendo); `SAP_TIMEOUT_S` sigue en 30 s; los pools `lectura`/`escritura` se crean al
+  encender la corrección y no se cierran al apagarla (quedan ociosos, `pool=general` vuelve a atender todo).
+
+### O1 — Overhead de observabilidad
+
+Misma carga sin falla (`definiciones/O1.yaml`, `falla: null`), con y sin trazas:
+
+```bash
+make lab-up            && make experimento ID=O1   # → O1-trazas-on_<UTC>
+TRAZAS=off make lab-up && make experimento ID=O1   # → O1-trazas-off_<UTC>
+make lab-up                                        # restaura las trazas
+```
+
+El runner toma el estado de `trazas_activas` (debe ser igual en todos los procesos) y lo pone en el nombre
+de la corrida. Predicción: `evidencia/predictions/O1.md`.

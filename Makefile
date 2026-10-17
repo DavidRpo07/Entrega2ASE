@@ -72,6 +72,7 @@ LAB_SERVICIOS = api-1 api-2 worker ext-sap fallas-ext nginx prometheus grafana j
 lab-up: db-up
 	@mkdir -p lab/runtime
 	@[ -f lab/runtime/faults.yaml ] || cp lab/faults.yaml lab/runtime/faults.yaml
+	@[ -f lab/runtime/correcciones.yaml ] || cp lab/correcciones.yaml lab/runtime/correcciones.yaml
 	@docker compose build api-1
 	@docker compose up -d --wait $(LAB_SERVICIOS)
 	@echo "Laboratorio arriba: API http://localhost:8080/docs | Grafana http://localhost:3000 | Prometheus http://localhost:9090 | Jaeger http://localhost:16686"
@@ -119,18 +120,22 @@ lab-carga: $(CARGA)
 # Protocolo y SLO en lab/slo.yaml; evidencia en evidencia/{experiments,baseline,metrics,logs,traces,results}/<ID>_<UTC>/
 PY ?= $(if $(wildcard venv/bin/python),venv/bin/python,python3)
 
+# Fase 4: CORRECCION=on enciende las correcciones de lab/correcciones.yaml (experimentos.<ID>) con la
+# misma falla y semilla; exige evidencia/predictions/<ID>-corr.md en LISTA y nombra la corrida <ID>-corr_<UTC>.
+CORRECCION ?= off
+
 # En macOS el runner corre bajo `caffeinate -i` (sin reposo por inactividad, también con batería):
 # en B1 el Mac se durmió en plena falla. El runner además aborta si detecta una suspensión.
 CAFEINA := $(shell command -v caffeinate >/dev/null 2>&1 && echo caffeinate -i)
 
 experimento:
-	@test -n "$(ID)" || (echo "uso: make experimento ID=A1" && exit 1)
-	@$(CAFEINA) $(PY) lab/experimentos/runner.py --id $(ID)
+	@test -n "$(ID)" || (echo "uso: make experimento ID=A1 [CORRECCION=on]" && exit 1)
+	@$(CAFEINA) $(PY) lab/experimentos/runner.py --id $(ID) --correccion $(CORRECCION)
 
 # Corrida corta de prueba del runner (30 s + 30 s + 25 s, prefijo PRUEBA-, ignorada por git).
 experimento-prueba:
-	@test -n "$(ID)" || (echo "uso: make experimento-prueba ID=A1" && exit 1)
-	@$(CAFEINA) $(PY) lab/experimentos/runner.py --id $(ID) --prueba
+	@test -n "$(ID)" || (echo "uso: make experimento-prueba ID=A1 [CORRECCION=on]" && exit 1)
+	@$(CAFEINA) $(PY) lab/experimentos/runner.py --id $(ID) --prueba --correccion $(CORRECCION)
 
 limpiar-pruebas:
 	@rm -rf evidencia/*/PRUEBA-*

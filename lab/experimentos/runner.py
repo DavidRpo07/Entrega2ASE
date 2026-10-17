@@ -2,13 +2,19 @@
 """Runner de experimentos (Entregable 3, fase 3).
 
     make experimento ID=A1            # corrida real: exige evidencia/predictions/A1.md en estado LISTA
+    make experimento ID=A1 CORRECCION=on   # fase 4: misma falla y semilla con las correcciones de
+                                           # lab/correcciones.yaml (experimentos.A1); exige A1-corr.md
     make experimento-prueba ID=A1     # corrida corta de prueba (prefijo PRUEBA-, ignorada por git)
+
+Correcciones: al empezar, el runner reescribe lab/runtime/correcciones.yaml (desde fallas-ext) con
+las de la corrida encendidas (ninguna sin CORRECCION=on), espera a verlas en Prometheus, y al
+terminar las apaga. O1 (overhead de observabilidad) no tiene falla: su nombre lleva -trazas-on/off.
 
 Protocolo (lab/slo.yaml): kill switch → make lab-reset → k6 a tasa constante durante
 baseline + falla + recuperación → activar la falla (POST /admin/faults) al terminar el
 baseline → kill switch (DELETE /admin/faults) al terminar la falla → recolectar evidencia.
 
-Evidencia por corrida (<RUN> = <ID>_<UTC>):
+Evidencia por corrida (<RUN> = <ID>[-corr][-trazas-off]_<UTC>):
   evidencia/experiments/<RUN>/   manifest.json (config usada, marcas de tiempo, versiones), prediccion.md
   evidencia/baseline/<RUN>/      métricas del cliente en la fase baseline
   evidencia/metrics/<RUN>/       peticiones.csv.gz (k6, una fila por petición), prometheus/*.csv, k6_resumen.json
@@ -78,6 +84,21 @@ CONSULTAS = {
     "pg_conexiones_por_estado": 'sum by (state) (pg_stat_activity_count{datname="escalables"})',
     "pg_rollback_por_s": 'rate(pg_stat_database_xact_rollback{datname="escalables"}[30s])',
     "trazas_activas": 'trazas_activas',
+    # Fase 4: correcciones
+    "correccion_activa": 'min by (correccion) (correccion_activa{job=~"api|worker"})',
+    "breaker_estado": 'max by (instancia, nombre) (circuit_breaker_estado)',
+    "breaker_transiciones": 'sum by (nombre, hacia) (circuit_breaker_transiciones_total)',
+    "breaker_rechazos_por_s": 'sum by (nombre) (rate(circuit_breaker_rechazos_total[30s]))',
+    "catalogo_timeouts_por_s": 'sum(rate(catalogo_timeouts_total[30s]))',
+    "catalogo_fallback_por_s": 'sum by (motivo, resultado) (rate(catalogo_fallback_total[30s]))',
+    "pool_en_uso_por_pool": 'sum by (instancia, pool) (db_pool_conexiones{job="api",estado="en_uso"})',
+    "pool_esperando_por_pool": 'sum by (instancia, pool) (db_pool_esperando{job="api"})',
+    "pool_timeouts_por_s_por_pool": 'sum by (pool) (rate(db_pool_timeouts_total{job="api"}[30s]))',
+    "lock_timeouts_por_s": 'sum(rate(db_lock_timeouts_total[30s]))',
+    "outbox_reintentos_por_s": 'sum(rate(outbox_reintentos_total[30s]))',
+    "outbox_muertos": 'max(outbox_mensajes_muertos)',
+    "outbox_muertos_por_s": 'sum(rate(outbox_muertos_total[30s]))',
+    "outbox_breaker_diferidos_por_s": 'sum(rate(outbox_breaker_diferidos_total[30s]))',
 }
 
 
@@ -127,6 +148,40 @@ def kill_switch_archivo() -> float:
     if r.returncode != 0:
         raise RuntimeError(f"kill switch por archivo falló: {r.stderr.strip()[-300:]}")
     return float(r.stdout.strip().splitlines()[-1])
+
+
+# Escribe lab/runtime/correcciones.yaml desde fallas-ext (mismo motivo que el kill switch).
+_CORR_PY = r"""
+import json, os, sys
+from lab.resiliencia.config import escribir_activas
+d = escribir_activas(os.environ["CORRECCIONES_FILE"], os.environ["CORRECCIONES_BASE"], json.loads(sys.argv[1]), sys.argv[2] or None)
+print(json.dumps(d, ensure_ascii=False))
+"""
+
+
+def aplicar_correcciones(activas: list, corrida: str, timeline, esperar_s: float = 30) -> dict:
+    """Enciende solo `activas` en todos los procesos y espera a que Prometheus lo confirme en
+    api-1, api-2 y worker (correccion_activa)."""
+    r = sh("docker", "compose", "exec", "-T", "fallas-ext", "python", "-c", _CORR_PY, json.dumps(activas), corrida)
+    if r.returncode != 0:
+        raise RuntimeError(f"no se pudieron escribir las correcciones: {r.stderr.strip()[-300:]}")
+    escrito = json.loads(r.stdout.strip().splitlines()[-1])
+    fin = ahora() + esperar_s
+    while True:
+        filas = prom_instant('correccion_activa{job=~"api|worker"}')
+        vistas = {}
+        for x in filas:
+            vistas.setdefault(x["metric"]["correccion"], set()).add(float(x["value"][1]))
+        procesos = {x["metric"].get("instancia") for x in filas}
+        ok = ({"api-1", "api-2", "worker"} <= procesos
+              and all(v == {1.0 if c in activas else 0.0} for c, v in vistas.items()) and vistas)
+        if ok or ahora() > fin:
+            break
+        time.sleep(1)
+    timeline("correcciones_aplicadas", activas=activas, confirmadas=bool(ok), procesos=sorted(p for p in procesos if p))
+    if not ok:
+        raise RuntimeError(f"Prometheus no confirmó las correcciones {activas} en {esperar_s} s: {vistas}")
+    return escrito
 
 
 def kill_switch(timeline, evento="kill_switch") -> float:
@@ -251,12 +306,14 @@ def cargar_definicion(exp_id: str, slo: dict, prueba: bool, fases_cli: dict) -> 
     if not ruta.exists():
         raise SystemExit(f"no existe {ruta.relative_to(RAIZ)}")
     d = yaml.safe_load(ruta.read_text(encoding="utf-8"))
-    catalogo = {f["id"]: f for f in yaml.safe_load((RAIZ / "lab/fallas/catalogo.yaml").read_text(encoding="utf-8"))["fallas"]}
-    base = catalogo[d.get("falla", exp_id)]
     fases = {**slo["fases"], **(d.get("fases") or {})}
     if prueba:
         fases = {"baseline_s": 30, "falla_s": 30, "recuperacion_s": 25}
     fases.update({k: v for k, v in fases_cli.items() if v})
+    if "falla" in d and d["falla"] is None:   # O1: misma carga, sin falla (overhead de observabilidad)
+        return {"definicion": d, "archivo": str(ruta.relative_to(RAIZ)), "falla": None, "fases": fases}
+    catalogo = {f["id"]: f for f in yaml.safe_load((RAIZ / "lab/fallas/catalogo.yaml").read_text(encoding="utf-8"))["fallas"]}
+    base = catalogo[d.get("falla", exp_id)]
     falla = {**base, **(d.get("configuracion") or {})}
     falla.setdefault("duracion_s", None)
     if not (d.get("configuracion") or {}).get("duracion_s"):
@@ -265,8 +322,18 @@ def cargar_definicion(exp_id: str, slo: dict, prueba: bool, fases_cli: dict) -> 
     return {"definicion": d, "archivo": str(ruta.relative_to(RAIZ)), "falla": falla, "fases": fases}
 
 
-def prediccion(exp_id: str, prueba: bool) -> dict:
-    ruta = EVID / "predictions" / f"{exp_id}.md"
+def correcciones_de(exp_id: str, correccion: bool) -> list:
+    """Correcciones que CORRECCION=on enciende para este experimento (lab/correcciones.yaml)."""
+    if not correccion:
+        return []
+    mapa = (yaml.safe_load((RAIZ / "lab/correcciones.yaml").read_text(encoding="utf-8")) or {}).get("experimentos") or {}
+    if not mapa.get(exp_id):
+        raise SystemExit(f"{exp_id} no tiene correcciones en lab/correcciones.yaml (experimentos: {sorted(mapa)})")
+    return list(mapa[exp_id])
+
+
+def prediccion(exp_id: str, prueba: bool, correccion: bool = False) -> dict:
+    ruta = EVID / "predictions" / (f"{exp_id}-corr.md" if correccion else f"{exp_id}.md")
     if not ruta.exists():
         raise SystemExit(f"falta la predicción {ruta.relative_to(RAIZ)}")
     texto = ruta.read_text(encoding="utf-8")
@@ -546,7 +613,7 @@ def guardar_trazas(dir_traces: Path, marcas: dict, slo: dict) -> list[dict]:
     return indice
 
 
-def resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, enlaces) -> str:
+def resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, enlaces, corr=None, trazas_on=True) -> str:
     def fila(nombre, s):
         if not s.get("peticiones"):
             return f"| {nombre} | {s.get('planificadas', 0)} | 0 | {s.get('no_enviadas', 0)} | | | | | | | | |"
@@ -557,7 +624,11 @@ def resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, 
     lineas = [
         f"# Resultado {run}", "",
         f"- Experimento: **{exp['definicion']['id']}** — {exp['definicion']['descripcion']}",
-        f"- Configuración de la falla: `{json.dumps({k: v for k, v in exp['falla'].items() if k not in ('descripcion',)}, ensure_ascii=False)}`",
+        (f"- Configuración de la falla: `{json.dumps({k: v for k, v in exp['falla'].items() if k not in ('descripcion',)}, ensure_ascii=False)}`"
+         if exp["falla"] else "- Sin falla: las tres fases son la misma carga (los nombres de fase quedan solo como marcas de tiempo)"),
+        f"- Correcciones: " + (", ".join(f"**{c}** `{json.dumps({k: v for k, v in corr['config'][c].items() if k != 'activa'}, ensure_ascii=False)}`"
+                                         for c in corr["activas"]) if corr and corr["activas"] else "ninguna (sistema sin corregir)"),
+        f"- Trazas (OpenTelemetry): {'encendidas' if trazas_on else 'APAGADAS (TRAZAS=off)'}",
         f"- Fases: baseline {exp['fases']['baseline_s']} s · falla {exp['fases']['falla_s']} s · recuperación {exp['fases']['recuperacion_s']} s · tasa {slo['carga']['tasa_rps']} req/s",
         f"- Marcas (UTC): baseline {iso(marcas['baseline'])} · falla {iso(marcas['falla_on'])} · kill switch {iso(marcas['kill'])} · fin {iso(marcas['fin'])}",
         f"- Predicción: `{pred['archivo']}` sha256 `{pred['sha256'][:12]}…`" + (" (**PENDIENTE: corrida de prueba**)" if pred["pendiente"] else ""),
@@ -599,22 +670,42 @@ def main():
     ap.add_argument("--baseline-s", type=int)
     ap.add_argument("--falla-s", type=int)
     ap.add_argument("--recuperacion-s", type=int)
+    ap.add_argument("--correccion", choices=["on", "off"], default="off",
+                    help="on: enciende las correcciones de lab/correcciones.yaml para este experimento (fase 4)")
     a = ap.parse_args()
+    correccion = a.correccion == "on"
 
     slo = yaml.safe_load((RAIZ / "lab/slo.yaml").read_text(encoding="utf-8"))
     exp = cargar_definicion(a.id, slo, a.prueba, {"baseline_s": a.baseline_s, "falla_s": a.falla_s, "recuperacion_s": a.recuperacion_s})
-    pred = prediccion(a.id, a.prueba)
-    run = ("PRUEBA-" if a.prueba else "") + f"{a.id}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+    activas = correcciones_de(a.id, correccion)
+    pred = prediccion(a.id, a.prueba, correccion)
+    t_min, t_max = valor("min(trazas_activas)"), valor("max(trazas_activas)")
+    if t_min != t_max or math.isnan(t_min):
+        raise SystemExit(f"trazas_activas no es igual en todos los procesos (min {t_min}, max {t_max}): reinicie con make lab-up")
+    trazas_on = t_min == 1.0
+    sufijo = ("-corr" if correccion else "") + (("-trazas-on" if trazas_on else "-trazas-off") if exp["falla"] is None
+                                                else ("" if trazas_on else "-trazas-off"))
+    run = ("PRUEBA-" if a.prueba else "") + f"{a.id}{sufijo}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     dirs = {k: EVID / k / run for k in ("experiments", "baseline", "metrics", "logs", "traces", "results")}
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
     timeline = Timeline(dirs["logs"] / "runner.jsonl")
-    timeline("inicio", run=run, fases=exp["fases"])
+    timeline("inicio", run=run, fases=exp["fases"], correcciones=activas, trazas=trazas_on)
     entorno = prechecks(timeline)
 
     fases = exp["fases"]
     total = fases["baseline_s"] + fases["falla_s"] + fases["recuperacion_s"]
     kill_switch(timeline, "kill_switch_inicial")
+    # Antes del reset y de la carga: el baseline ya corre con la corrección (mide su costo) y
+    # breakers y caché de precios se reinician (el archivo cambia en cada corrida: lleva `corrida`).
+    try:
+        corr_escrita = aplicar_correcciones(activas, run, timeline)
+    except Exception:
+        if activas:
+            aplicar_correcciones([], "", timeline)
+        raise
+    corr = {"activas": activas, "config": {k: corr_escrita[k] for k in ("catalogo", "bulkhead", "worker")},
+            "plantilla_sha256": sha256(RAIZ / "lab/correcciones.yaml")}
     time.sleep(2)
     r = sh("make", "lab-reset")
     timeline("lab_reset", salida=r.stdout.strip().splitlines()[-2:] if r.stdout else r.stderr[-300:])
@@ -638,15 +729,24 @@ def main():
         hilo.start()
         vigia.esperar_hasta(marcas["baseline"] + fases["baseline_s"])
 
-        c, resp = http("POST", f"{API}/admin/faults", exp["falla"])
-        marcas["falla_on"] = ahora()
-        estado["actual"] = "falla"
-        timeline("falla_activada", codigo=c, config=exp["falla"])
-        if c != 201:
-            raise SystemExit(f"no se pudo activar la falla: {c} {resp}")
+        if exp["falla"] is not None:
+            c, resp = http("POST", f"{API}/admin/faults", exp["falla"])
+            marcas["falla_on"] = ahora()
+            estado["actual"] = "falla"
+            timeline("falla_activada", codigo=c, config=exp["falla"])
+            if c != 201:
+                raise SystemExit(f"no se pudo activar la falla: {c} {resp}")
+        else:
+            marcas["falla_on"] = ahora()
+            estado["actual"] = "falla"
+            timeline("fase_falla_sin_falla")
         vigia.esperar_hasta(marcas["falla_on"] + fases["falla_s"])
 
-        marcas["kill"] = kill_switch(timeline)
+        if exp["falla"] is not None:
+            marcas["kill"] = kill_switch(timeline)
+        else:
+            marcas["kill"] = ahora()
+            timeline("fase_recuperacion_sin_falla")
         estado["actual"] = "recuperacion"
         limite = ahora() + fases["recuperacion_s"] + 120
         while k6.poll() is None:
@@ -673,6 +773,12 @@ def main():
     finally:
         parar.set()
         vigia.parar()
+        if activas:   # deja el lab como lo encontró: sin correcciones
+            try:
+                aplicar_correcciones([], "", timeline)
+            except Exception as e:  # noqa: BLE001
+                timeline("correcciones_no_apagadas", motivo=f"{type(e).__name__}: {e}")
+                print(f"AVISO: no se pudieron apagar las correcciones: {e}. Use PUT /admin/correcciones {{\"activas\": []}}", file=sys.stderr)
 
     # ------------------------------------------------------------ evidencia
     print("recolectando evidencia…", flush=True)
@@ -709,16 +815,18 @@ def main():
     (dirs["baseline"] / "resumen_baseline.json").write_text(json.dumps(
         {"run": run, "desde_utc": iso(tramos["baseline"][0]), "hasta_utc": iso(tramos["baseline"][1]), **por_fase["baseline"]},
         indent=2, ensure_ascii=False), encoding="utf-8")
-    resumen = {"run": run, "experimento": exp["definicion"]["id"], "prueba": a.prueba, "marcas_utc": {k: iso(v) for k, v in marcas.items()},
+    resumen = {"run": run, "experimento": exp["definicion"]["id"], "prueba": a.prueba, "correcciones": activas, "trazas": trazas_on,
+               "marcas_utc": {k: iso(v) for k, v in marcas.items()},
                "por_fase": por_fase, "recuperacion": rec, "slo": slo["slo"], "inyecciones": len(inyecciones),
                "claves_expuestas_durante_falla": len(claves_expuestas), "no_enviadas_total": len(no_enviadas),
                "trazas": len(trazas), "enlaces": enlaces}
     (dirs["results"] / "resumen.json").write_text(json.dumps(resumen, indent=2, ensure_ascii=False), encoding="utf-8")
-    (dirs["results"] / "resumen.md").write_text(resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, enlaces), encoding="utf-8")
+    (dirs["results"] / "resumen.md").write_text(resumen_md(run, exp, marcas, por_fase, rec, slo, pred, inyecciones, trazas, enlaces, corr, trazas_on), encoding="utf-8")
     (dirs["experiments"] / "prediccion.md").write_text(pred.pop("texto"), encoding="utf-8")
     datos = RAIZ / "lab/carga/datos" / f"carga_s{slo['carga']['semilla']}_n{slo['carga']['n']}.json"
     manifest = {
         "run": run, "prueba": a.prueba, "definicion": exp["archivo"], "falla_aplicada": exp["falla"], "fases": fases,
+        "correcciones": corr, "trazas_activas": trazas_on,
         "carga": {**slo["carga"], "archivo": str(datos.relative_to(RAIZ)), "sha256": sha256(datos)},
         "marcas_utc": {k: iso(v) for k, v in marcas.items()}, "prediccion": pred, "entorno": entorno,
         "git": {"commit": sh("git", "rev-parse", "HEAD").stdout.strip(), "cambios_sin_commit": bool(sh("git", "status", "--porcelain", "--", "app", "lab", "infra", "compose.yaml").stdout.strip())},

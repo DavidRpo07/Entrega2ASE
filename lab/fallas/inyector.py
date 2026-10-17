@@ -28,6 +28,7 @@ import os
 import random
 import threading
 import time
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
@@ -40,6 +41,11 @@ log = logging.getLogger("fallas")
 
 # Ruta de la petición en curso ("POST /ordenes"); la fija la API para el filtro `rutas`.
 RUTA_ACTUAL: ContextVar[Optional[str]] = ContextVar("ruta_actual", default=None)
+
+# Plazo (deadline) de la llamada en curso, en el reloj del inyector. Lo fija la corrección de
+# timeout de la fase 4 con Inyector.plazo(ms): una latencia inyectada que no cabe en el plazo
+# duerme solo hasta el plazo y lanza PlazoAgotado (el llamador deja de esperar a la dependencia).
+PLAZO: ContextVar[Optional[float]] = ContextVar("plazo", default=None)
 
 # Tipos soportados por el inyector en proceso. B2 (bloqueo en BD) y D1 (caída de
 # instancia) se ejecutan con scripts externos del runner, pero se registran aquí
@@ -62,6 +68,14 @@ class FallaInyectada(Exception):
         self.falla_id = falla_id
         self.codigo_http = codigo_http
         super().__init__(mensaje or f"Falla inyectada {falla_id} (HTTP {codigo_http})")
+
+
+class PlazoAgotado(Exception):
+    """La latencia inyectada superó el plazo fijado con Inyector.plazo() (timeout del llamador)."""
+
+    def __init__(self, target: str, falla_id: str, esperado_ms: float):
+        self.target, self.falla_id, self.esperado_ms = target, falla_id, esperado_ms
+        super().__init__(f"plazo agotado en {target} tras {esperado_ms:.0f} ms (falla {falla_id})")
 
 
 class ConfiguracionInvalida(ValueError):
@@ -347,6 +361,15 @@ class Inyector:
         return f.target == target
 
     # ------------------------------------------------------------------ efectos
+    @contextmanager
+    def plazo(self, ms: float):
+        """Fija un plazo de `ms` para los puntos de falla que se crucen dentro del bloque."""
+        token = PLAZO.set(self._reloj() + ms / 1000.0)
+        try:
+            yield
+        finally:
+            PLAZO.reset(token)
+
     def punto(self, target: str, clave: Optional[str] = None, ruta: Optional[str] = None) -> float:
         """Aplica las fallas activas sobre este punto. Devuelve ms de retraso
         inyectados (útil para logs/trazas). Puede lanzar FallaInyectada.
@@ -373,6 +396,12 @@ class Inyector:
             log.info("falla inyectada id=%s target=%s ms=%.1f clave=%s", f.id, target, ms, clave,
                      extra={"falla_id": f.id, "target": target, "clave": clave, "ruta": ruta, "ms": ms})
             if ms > 0:
+                plazo = PLAZO.get()
+                restante = None if plazo is None else plazo - self._reloj()
+                if restante is not None and ms / 1000.0 > restante:
+                    espera = max(0.0, restante)
+                    self._dormir(espera)
+                    raise PlazoAgotado(target, f.id, retraso_ms + espera * 1000.0)
                 self._dormir(ms / 1000.0)
                 retraso_ms += ms
             if f.tipo == "error":

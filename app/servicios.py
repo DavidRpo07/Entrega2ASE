@@ -13,9 +13,11 @@ from ejecutar_fase4_modulith import (
     CatalogoService, LogisticaService, OrdenesService, ProveedorService,
 )
 
+from app import correcciones
 from app.db import CLAVE_PETICION
 from app.telemetria import TRACER
 from lab.fallas.inyector import INYECTOR
+from lab.resiliencia.config import CORRECCIONES
 
 
 def modulo(target: str):
@@ -38,8 +40,14 @@ class ProveedorConFallas(ProveedorService):
 
 class CatalogoConFallas(CatalogoService):
     @modulo("catalogo.validar_sku")
-    def validar_sku_y_obtener_precio(self, proveedor_id, sku_id, fecha_evaluacion):
+    def _validar_sku(self, proveedor_id, sku_id, fecha_evaluacion):
         return super().validar_sku_y_obtener_precio(proveedor_id, sku_id, fecha_evaluacion)
+
+    def validar_sku_y_obtener_precio(self, proveedor_id, sku_id, fecha_evaluacion):
+        llamar = lambda: self._validar_sku(proveedor_id, sku_id, fecha_evaluacion)  # noqa: E731
+        if CORRECCIONES.activa("catalogo"):   # A1 corregido: timeout + breaker + último precio
+            return correcciones.precio_catalogo(llamar, proveedor_id, sku_id)
+        return llamar()
 
 
 class LogisticaConFallas(LogisticaService):

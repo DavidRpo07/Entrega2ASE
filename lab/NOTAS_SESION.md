@@ -10,8 +10,14 @@ evidencia en `evidencia/README.md`.
   - Fase 1: API, outbox, ext-sap y nginx con 2 réplicas.
   - Fase 2: Prometheus, Grafana, Jaeger y logs JSON.
   - Fase 3: runner y los 8 experimentos.
-- **Fase 4 pendiente**: timeout + circuit breaker, retry con backoff y bulkhead. Empieza solo
-  cuando el equipo lo confirme.
+- **Fase 4 implementada** (2026-10-16), sin corridas todavía. Ver "Fase 4" en `lab/README.md`:
+  - correcciones en `lab/correcciones.yaml` (`catalogo` → A1, `bulkhead` → A2/B1/B2, `worker` → D2),
+    en caliente, todas apagadas por defecto; `make experimento ID=<ID> CORRECCION=on` → `<ID>-corr_<UTC>`;
+  - O1 (overhead de observabilidad): `make experimento ID=O1` con y sin `TRAZAS=off make lab-up`;
+  - decisiones del equipo: pools 3 escritura + 2 lectura (total 5), A1 sin precio conocido → 503 rápido,
+    ficha `O1.md`;
+  - fichas `A1-corr`, `A2-corr`, `B1-corr`, `B2-corr`, `D2-corr` y `O1` en `Estado: PENDIENTE`: las
+    escribe el equipo; el runner no corre hasta que estén en LISTA y con commit.
 - **Predicciones**: las 8 de `evidencia/predictions/` están en `Estado: LISTA`, con commit
   `b07f00e` antes de correr. **No se modifican.**
 - **Tablas "Predicción vs. resultado"** de cada `results/<RUN>/resumen.md`: vacías, las llena el equipo.
@@ -29,6 +35,7 @@ make datos && make lab-up        # clon limpio: datos E2 + lab completo (reinici
 make lab-smoke                   # verificación end-to-end
 make test-lab                    # tests del inyector (usar el venv: PATH=venv/bin:$PATH)
 make experimento ID=B1           # corrida real (~12 min): exige la predicción en LISTA
+make experimento ID=B1 CORRECCION=on   # fase 4: misma falla con la corrección (exige B1-corr.md en LISTA)
 make experimento-prueba ID=A1    # corrida corta (30/30/25 s, prefijo PRUEBA-, ignorada por git)
 make limpiar-pruebas             # borra las corridas PRUEBA-*
 make lab-reset                   # restaura los datos de partida (lo hace el runner)

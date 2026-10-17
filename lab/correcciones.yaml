@@ -1,0 +1,33 @@
+# Correcciones de la fase 4 (Entregable 3). Todas APAGADAS por defecto: así corren las fallas "antes".
+# `make lab-up` copia este archivo a lab/runtime/correcciones.yaml, que API, worker y fallas-ext
+# releen cada 0,25 s (sin redespliegue). El runner lo reescribe al empezar cada corrida:
+#   make experimento ID=A1                  → todas apagadas (antes)
+#   make experimento ID=A1 CORRECCION=on    → solo las de `experimentos.A1` encendidas (después)
+# y lo deja apagado al terminar. Los parámetros de abajo son los que se usan con `activa: true`.
+
+catalogo:              # A1: timeout + circuit breaker + fallback en catalogo.validar_sku
+  activa: false
+  timeout_ms: 200      # deja de esperar a Catálogo a los 200 ms (deadline sobre la espera de la dependencia)
+  breaker: {fallos_para_abrir: 5, semiabierto_tras_s: 30}
+  # fallback: último precio conocido por (proveedor, sku) en esta réplica; sin precio → 503 inmediato
+
+bulkhead:              # A2, B1, B2: pools separados + fail-fast + lock_timeout
+  activa: false
+  pool_escritura: 3    # POST /ordenes
+  pool_lectura: 2      # GET (Q5, Q4, Q2, órdenes, franjas, outbox). Mismo total de 5 por réplica
+  pool_timeout_ms: 500 # espera máxima por conexión (sin corrección: 5 s)
+  lock_timeout_ms: 1000  # SET LOCAL lock_timeout en la transacción de POST /ordenes (reserva de franjas)
+
+worker:                # D2: retry con backoff + jitter, mensajes muertos y circuit breaker hacia ext-sap
+  activa: false
+  max_intentos: 3      # al 3.er fallo el evento pasa a ordenes.outbox_muerto
+  backoff: {base_ms: 100, factor: 2, jitter: 0.5}   # ~100, ~200 ms (+ hasta 50 %), sin bloquear el lote
+  breaker: {fallos_para_abrir: 5, semiabierto_tras_s: 30}
+
+# Qué correcciones enciende CORRECCION=on en cada experimento (misma falla y misma semilla).
+experimentos:
+  A1: [catalogo]
+  A2: [bulkhead]
+  B1: [bulkhead]
+  B2: [bulkhead]
+  D2: [worker]

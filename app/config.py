@@ -19,6 +19,10 @@ POOL_TIMEOUT_S = float(os.environ.get("POOL_TIMEOUT_S", "5"))
 FAULTS_FILE = os.environ.get("FAULTS_FILE")              # faults.yaml compartido por todos los contenedores
 CATALOGO_FALLAS = os.environ.get("CATALOGO_FALLAS", "lab/fallas/catalogo.yaml")
 
+# Correcciones de la fase 4: archivo en caliente (lo lee lab.resiliencia.config) y su plantilla.
+CORRECCIONES_FILE = os.environ.get("CORRECCIONES_FILE")
+CORRECCIONES_BASE = os.environ.get("CORRECCIONES_BASE", "lab/correcciones.yaml")
+
 EXT_SAP_URL = os.environ.get("EXT_SAP_URL", "http://ext-sap:8000")
 SAP_TIMEOUT_S = float(os.environ.get("SAP_TIMEOUT_S", "30"))   # sin corrección: timeout holgado
 SAP_LATENCIA_MS = float(os.environ.get("SAP_LATENCIA_MS", "20"))
